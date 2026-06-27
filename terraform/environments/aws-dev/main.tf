@@ -72,6 +72,7 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_security_group" "app" {
   name_prefix = "${var.project}-sg-"
+  description = "Security group for the application EC2 instance"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -296,25 +297,28 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier                      = "${var.project}-pg"
-  engine                          = "postgres"
-  engine_version                  = "16"
-  instance_class                  = var.rds_instance_class
-  allocated_storage               = 20
-  storage_type                    = "gp3"
-  db_name                         = var.pg_database_name
-  username                        = var.pg_admin_user
-  password                        = var.pg_admin_password
-  db_subnet_group_name            = aws_db_subnet_group.main.name
-  vpc_security_group_ids          = [aws_security_group.rds.id]
-  publicly_accessible             = false
-  auto_minor_version_upgrade      = true
-  copy_tags_to_snapshot           = true
-  storage_encrypted               = true
-  deletion_protection             = true
-  skip_final_snapshot             = false
-  final_snapshot_identifier       = "${var.project}-pg-final-snapshot"
-  enabled_cloudwatch_logs_exports = ["postgresql"]
+  identifier                            = "${var.project}-pg"
+  engine                                = "postgres"
+  engine_version                        = "16"
+  instance_class                        = var.rds_instance_class
+  allocated_storage                     = 20
+  storage_type                          = "gp3"
+  db_name                               = var.pg_database_name
+  username                              = var.pg_admin_user
+  password                              = var.pg_admin_password
+  db_subnet_group_name                  = aws_db_subnet_group.main.name
+  vpc_security_group_ids                = [aws_security_group.rds.id]
+  publicly_accessible                   = false
+  auto_minor_version_upgrade            = true
+  copy_tags_to_snapshot                 = true
+  iam_database_authentication_enabled   = true
+  performance_insights_enabled          = true
+  performance_insights_retention_period = 7
+  storage_encrypted                     = true
+  deletion_protection                   = true
+  skip_final_snapshot                   = false
+  final_snapshot_identifier             = "${var.project}-pg-final-snapshot"
+  enabled_cloudwatch_logs_exports       = ["postgresql"]
 
   tags = {
     Project = var.project

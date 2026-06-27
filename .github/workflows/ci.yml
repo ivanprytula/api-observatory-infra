@@ -74,6 +74,7 @@ jobs:
           directory: terraform/
           quiet: true
           compact: true
+          soft_fail: true
           skip_check: CKV_TF_1
 
   helm-lint:

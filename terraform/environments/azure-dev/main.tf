@@ -227,6 +227,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
   delegated_subnet_id           = azurerm_subnet.postgresql.id
   private_dns_zone_id           = azurerm_private_dns_zone.postgresql.id
 
+  geo_redundant_backup_enabled = true
+
   zone = "1"
 }
 
