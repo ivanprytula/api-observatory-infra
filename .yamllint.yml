@@ -15,5 +15,6 @@ rules:
     indent-sequences: consistent
 
 ignore:
+  - .venv/
   - kubernetes/charts/*/templates/
   - monitoring/grafana/dashboards/

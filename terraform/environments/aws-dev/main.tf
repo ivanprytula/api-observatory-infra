@@ -281,22 +281,22 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier             = "${var.project}-pg"
-  engine                 = "postgres"
-  engine_version         = "16"
-  instance_class         = var.rds_instance_class
-  allocated_storage      = 20
-  storage_type           = "gp3"
-  db_name                = var.pg_database_name
-  username               = var.pg_admin_user
-  password               = var.pg_admin_password
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
-  storage_encrypted      = true
-  deletion_protection    = true
-  skip_final_snapshot    = false
-  final_snapshot_identifier = "${var.project}-pg-final-snapshot"
+  identifier                      = "${var.project}-pg"
+  engine                          = "postgres"
+  engine_version                  = "16"
+  instance_class                  = var.rds_instance_class
+  allocated_storage               = 20
+  storage_type                    = "gp3"
+  db_name                         = var.pg_database_name
+  username                        = var.pg_admin_user
+  password                        = var.pg_admin_password
+  db_subnet_group_name            = aws_db_subnet_group.main.name
+  vpc_security_group_ids          = [aws_security_group.rds.id]
+  publicly_accessible             = false
+  storage_encrypted               = true
+  deletion_protection             = true
+  skip_final_snapshot             = false
+  final_snapshot_identifier       = "${var.project}-pg-final-snapshot"
   enabled_cloudwatch_logs_exports = ["postgresql"]
 
   tags = {

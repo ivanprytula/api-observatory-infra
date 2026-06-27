@@ -68,11 +68,10 @@ chaos_network_partition() {
         service="${CONTAINER_PREFIX}-ingestor"
     fi
 
-    local container_id
-    container_id=$(docker inspect --format='{{.Id}}' "$service" 2>/dev/null) || {
+    if ! docker inspect --format='{{.Id}}' "$service" >/dev/null 2>&1; then
         warn "Container '${service}' not found, skipping network chaos"
         return 0
-    }
+    fi
 
     log "NETWORK: Adding ${DELAY_JITTER}ms jitter + ${PACKET_LOSS}% packet loss to '${service}'"
 

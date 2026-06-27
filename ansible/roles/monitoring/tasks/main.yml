@@ -17,7 +17,9 @@
 
 - name: 'Install node_exporter'
   ansible.builtin.unarchive:
-    src: 'https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz'
+    src: "https://github.com/prometheus/node_exporter/releases/download/\
+      v{{ node_exporter_version }}/\
+      node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
     dest: '/usr/local/bin'
     remote_src: true
     extra_opts:

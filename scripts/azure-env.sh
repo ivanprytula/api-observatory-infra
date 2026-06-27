@@ -58,7 +58,8 @@ case "$MODE" in
 			echo "ERROR: Not logged in. Run: az login" >&2
 			_done 1
 		fi
-		export AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+		AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+		export AZURE_SUBSCRIPTION_ID
 		echo "Azure subscription: $(az account show --query name -o tsv) (${AZURE_SUBSCRIPTION_ID})" >&2
 		_done 0
 		;;
@@ -73,7 +74,8 @@ case "$MODE" in
 		fi
 
 		if command -v az &>/dev/null && az account show > /dev/null 2>&1; then
-			export AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+			AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+			export AZURE_SUBSCRIPTION_ID
 			echo "Using Azure CLI login: $(az account show --query name -o tsv)" >&2
 			_done 0
 		fi
