@@ -215,19 +215,17 @@ resource "azurerm_linux_virtual_machine" "app" {
 }
 
 resource "azurerm_postgresql_flexible_server" "main" {
-  name                             = "${var.project}-pg"
-  resource_group_name              = azurerm_resource_group.main.name
-  location                         = azurerm_resource_group.main.location
-  version                          = "16"
-  administrator_login              = var.pg_admin_user
-  administrator_password           = var.pg_admin_password
-  sku_name                         = "B_Standard_B1ms"
-  storage_mb                       = 32768
-  public_network_access_enabled    = false
-  delegated_subnet_id              = azurerm_subnet.postgresql.id
-  private_dns_zone_id              = azurerm_private_dns_zone.postgresql.id
-  ssl_minimal_tls_version_enforced = "TLS1_2"
-  deletion_protection_enabled      = true
+  name                          = "${var.project}-pg"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  administrator_login           = var.pg_admin_user
+  administrator_password        = var.pg_admin_password
+  sku_name                      = "B_Standard_B1ms"
+  storage_mb                    = 32768
+  public_network_access_enabled = false
+  delegated_subnet_id           = azurerm_subnet.postgresql.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgresql.id
 
   zone = "1"
 }

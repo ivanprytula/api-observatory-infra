@@ -156,6 +156,14 @@ resource "aws_instance" "app" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.app.id]
   key_name               = aws_key_pair.deploy.key_name
+  monitoring             = true
+  ebs_optimized          = true
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+  }
 
   root_block_device {
     volume_size = 30
@@ -173,7 +181,7 @@ resource "aws_instance" "app" {
 
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.project}"
-  retention_in_days = 30
+  retention_in_days = 400
 
   tags = {
     Project = var.project
@@ -212,12 +220,18 @@ resource "aws_iam_role_policy" "flow_logs" {
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
           "logs:DescribeLogGroups",
           "logs:DescribeLogStreams"
         ]
-        Resource = "*"
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "${aws_cloudwatch_log_group.flow_logs.arn}:*"
       }
     ]
   })
@@ -264,6 +278,7 @@ resource "aws_route_table_association" "public_b" {
 
 resource "aws_security_group" "rds" {
   name_prefix = "${var.project}-rds-sg-"
+  description = "Security group for RDS PostgreSQL"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -293,6 +308,8 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name            = aws_db_subnet_group.main.name
   vpc_security_group_ids          = [aws_security_group.rds.id]
   publicly_accessible             = false
+  auto_minor_version_upgrade      = true
+  copy_tags_to_snapshot           = true
   storage_encrypted               = true
   deletion_protection             = true
   skip_final_snapshot             = false

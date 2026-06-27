@@ -5,3 +5,9 @@ description = "Multi-cloud Infrastructure-as-Code"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    "shellcheck-py>=0.11.0.1",
+    "yamllint>=1.38.0",
+]
