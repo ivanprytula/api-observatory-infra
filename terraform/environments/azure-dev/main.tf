@@ -35,12 +35,41 @@ resource "azurerm_subnet" "main" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
+resource "azurerm_subnet" "postgresql" {
+  name                 = "${var.project}-pg-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.2.0/24"]
+
+  delegation {
+    name = "fs"
+
+    service_delegation {
+      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+resource "azurerm_private_dns_zone" "postgresql" {
+  name                = "privatelink.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgresql" {
+  name                  = "${var.project}-pg-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgresql.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+}
+
 resource "azurerm_public_ip" "vm" {
   name                = "${var.project}-pip"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   allocation_method   = "Static"
-  sku                 = "Basic"
+  sku                 = "Standard"
 }
 
 resource "azurerm_network_security_group" "vm" {
@@ -83,6 +112,54 @@ resource "azurerm_network_security_group" "vm" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+
+  security_rule {
+    name                       = "AllowOutboundHTTP"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
+  }
+
+  security_rule {
+    name                       = "AllowOutboundHTTPS"
+    priority                   = 111
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
+  }
+
+  security_rule {
+    name                       = "AllowOutboundPostgreSQL"
+    priority                   = 112
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "DenyAllOutbound"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 }
 
 resource "azurerm_network_interface" "vm" {
@@ -117,6 +194,12 @@ resource "azurerm_linux_virtual_machine" "app" {
     public_key = var.ssh_public_key
   }
 
+  identity {
+    type = "SystemAssigned"
+  }
+
+  boot_diagnostics {}
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
@@ -132,15 +215,19 @@ resource "azurerm_linux_virtual_machine" "app" {
 }
 
 resource "azurerm_postgresql_flexible_server" "main" {
-  name                          = "${var.project}-pg"
-  resource_group_name           = azurerm_resource_group.main.name
-  location                      = azurerm_resource_group.main.location
-  version                       = "16"
-  administrator_login           = var.pg_admin_user
-  administrator_password        = var.pg_admin_password
-  sku_name                      = "B_Standard_B1ms"
-  storage_mb                    = 32768
-  public_network_access_enabled = true
+  name                              = "${var.project}-pg"
+  resource_group_name               = azurerm_resource_group.main.name
+  location                          = azurerm_resource_group.main.location
+  version                           = "16"
+  administrator_login               = var.pg_admin_user
+  administrator_password            = var.pg_admin_password
+  sku_name                          = "B_Standard_B1ms"
+  storage_mb                        = 32768
+  public_network_access_enabled     = false
+  delegated_subnet_id               = azurerm_subnet.postgresql.id
+  private_dns_zone_id               = azurerm_private_dns_zone.postgresql.id
+  ssl_minimal_tls_version_enforced  = "TLS1_2"
+  deletion_protection_enabled       = true
 
   zone = "1"
 }
@@ -150,11 +237,4 @@ resource "azurerm_postgresql_flexible_server_database" "app" {
   server_id = azurerm_postgresql_flexible_server.main.id
   charset   = "UTF8"
   collation = "en_US.utf8"
-}
-
-resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_vm" {
-  name             = "AllowAppVM"
-  server_id        = azurerm_postgresql_flexible_server.main.id
-  start_ip_address = azurerm_public_ip.vm.ip_address
-  end_ip_address   = azurerm_public_ip.vm.ip_address
 }

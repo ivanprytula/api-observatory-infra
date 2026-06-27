@@ -37,8 +37,9 @@ This creates:
 
 - Resource group (`api-observatory-rg`)
 - B1s VM with Ubuntu 24.04 + Docker
-- PostgreSQL Flexible Server (B1ms, optional)
-- Firewall rules (SSH, HTTP, HTTPS)
+- PostgreSQL Flexible Server (B1ms, VNet-integrated, no public endpoint)
+- NSG rules (SSH, HTTP, HTTPS inbound; restricted outbound)
+- System-assigned managed identity on the VM
 - Credentials saved to `infra/scripts/.azure_credentials`
 
 ### 2. Configure GitHub Secrets

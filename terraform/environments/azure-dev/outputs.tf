@@ -6,11 +6,13 @@ output "vm_public_ip" {
 output "vm_ssh_command" {
   description = "SSH command to connect to the VM"
   value       = "ssh ${var.admin_username}@${azurerm_public_ip.vm.ip_address}"
+  sensitive   = true
 }
 
 output "pg_host" {
-  description = "PostgreSQL server FQDN"
+  description = "PostgreSQL server private FQDN"
   value       = azurerm_postgresql_flexible_server.main.fqdn
+  sensitive   = true
 }
 
 output "pg_connection_string" {

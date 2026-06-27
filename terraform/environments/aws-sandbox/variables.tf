@@ -9,3 +9,9 @@ variable "project" {
   type        = string
   default     = "api-observatory"
 }
+
+variable "admin_cidr" {
+  description = "CIDR block allowed to SSH into the sandbox instance"
+  type        = string
+  default     = "10.0.0.0/16"
+}

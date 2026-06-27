@@ -63,11 +63,11 @@ Azure NSGs use priority numbers; AWS security groups use implicit allow-all-deny
 
 ### 3. Database Networking
 
-**Azure**: Firewall rules on the Flexible Server allow specific IPs.
-**AWS**: RDS lives in a private subnet; access is via security group referencing the app SG.
+Both Azure and AWS use private VPC/VNet networking for PostgreSQL — no public endpoints.
 
-AWS's approach is more secure by default (no public endpoint), but requires the
-app and DB to be in the same VPC.
+**Azure**: Flexible Server is deployed in a delegated subnet with `public_network_access_enabled = false`.
+A private DNS zone (`privatelink.postgres.database.azure.com`) is linked to the VNet for name resolution.
+**AWS**: RDS uses a security group referencing the app SG; VPC flow logs capture network traffic.
 
 ### 4. Backup Strategy
 

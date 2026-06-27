@@ -8,5 +8,5 @@ rds_instance_class = "db.t3.micro"     # Free tier: 750 hrs/month for 12 months
 admin_cidr         = "YOUR_IP/32"      # Your public IP (curl ifconfig.me)
 ssh_public_key     = "ssh-ed25519 AAAA..."
 pg_admin_user      = "pgadmin"
-pg_admin_password  = "CHANGE_ME"
+pg_admin_password  = "CHANGE_ME"       # Required — use a strong, unique password
 pg_database_name   = "api_observatory"
