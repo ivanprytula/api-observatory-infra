@@ -1,0 +1,12 @@
+# AWS Dev Environment
+# Copy to terraform.tfvars and fill in values
+
+aws_region         = "eu-central-1"
+project            = "api-observatory"
+instance_type      = "t2.micro"        # Free tier: 750 hrs/month for 12 months
+rds_instance_class = "db.t3.micro"     # Free tier: 750 hrs/month for 12 months
+admin_cidr         = "YOUR_IP/32"      # Your public IP (curl ifconfig.me)
+ssh_public_key     = "ssh-ed25519 AAAA..."
+pg_admin_user      = "pgadmin"
+pg_admin_password  = "CHANGE_ME"
+pg_database_name   = "api_observatory"

@@ -1,0 +1,4 @@
+---
+# Encrypt with: ansible-vault encrypt ansible/inventory/group_vars/aws_dev/vault.yml
+# vault_pg_admin_password: "CHANGE_ME"
+# vault_ecr_password: "CHANGE_ME"

@@ -1,0 +1,12 @@
+---
+# AWS dev environment variables
+cloud_provider: aws
+docker_registry: "{{ ecr_registry }}"
+ecr_registry: "ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com"
+
+app_ingestor_image: "{{ docker_registry }}/api-observatory/ingestor:latest"
+app_dashboard_image: "{{ docker_registry }}/api-observatory/dashboard:latest"
+
+pg_host: "api-observatory-pg.XXXXX.eu-central-1.rds.amazonaws.com"
+pg_port: 5432
+pg_database: api_observatory

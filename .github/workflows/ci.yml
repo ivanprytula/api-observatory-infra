@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [azure-dev, azure-sandbox, aws-dev, aws-sandbox]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init TFLint plugins
+        run: tflint --init --config .tflint.hcl
+
+      - name: Run TFLint (all environments)
+        run: |
+          for dir in terraform/environments/*/; do
+            echo "::group::Linting ${dir}"
+            tflint --config "$(pwd)/.tflint.hcl" --chdir "$dir"
+            echo "::endgroup::"
+          done
+
+  checkov:
+    name: Checkov Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          quiet: true
+          compact: true
+          skip_check: CKV_TF_1
+
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: "v3.17.0"
+
+      - name: Lint all charts
+        run: |
+          for chart in kubernetes/charts/*/; do
+            echo "::group::Linting ${chart}"
+            helm lint "$chart"
+            echo "::endgroup::"
+          done
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: pip install yamllint
+
+      - name: Run yamllint
+        run: yamllint -c .yamllint.yml .
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: shellcheck --severity=warning scripts/*.sh

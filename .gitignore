@@ -1,0 +1,40 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!*.tfvars.example
+
+# Ansible
+*.retry
+
+# Secrets
+.env
+*.pem
+*.key
+id_rsa*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/settings.local.json
+
+docs/.plans/
+
+.venv/

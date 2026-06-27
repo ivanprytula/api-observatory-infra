@@ -1,0 +1,75 @@
+---
+# Provision and configure the Azure VM for API Observatory deployment.
+# Assumes the VM already exists (created by infra/scripts/azure-provision.sh or Terraform).
+#
+# Usage:
+#   ansible-playbook playbooks/provision-azure-vm.yml -i inventory/hosts.yml \
+#     --limit azure_dev --ask-become-pass
+#
+# After this playbook:
+#   - Docker and Docker Compose are installed
+#   - azureuser is in the docker group
+#   - App directory ~/app exists with .env and docker-compose.yml
+#   - Container images pulled from ACR
+#   - Services running via docker compose
+
+- name: 'Provision Azure VM for api-observatory'
+  hosts: azure_dev
+  gather_facts: true
+  become: true
+
+  vars:
+    app_dir: '/home/azureuser/app'
+    acr_login_server: '{{ vault_acr_login_server }}'
+
+  roles:
+    - role: 'common'
+    - role: 'docker'
+
+  tasks:
+    - name: 'Create app directory'
+      ansible.builtin.file:
+        path: '{{ app_dir }}'
+        state: directory
+        owner: azureuser
+        group: azureuser
+        mode: '0755'
+
+    - name: 'Copy docker-compose.yml'
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../../docker-compose.yml'
+        dest: '{{ app_dir }}/docker-compose.yml'
+        owner: azureuser
+        group: azureuser
+        mode: '0644'
+
+    - name: 'Render .env from template'
+      ansible.builtin.template:
+        src: '{{ playbook_dir }}/../roles/app/templates/env.j2'
+        dest: '{{ app_dir }}/.env'
+        owner: azureuser
+        group: azureuser
+        mode: '0600'
+
+    - name: 'Log in to ACR'
+      ansible.builtin.command:
+        cmd: 'docker login {{ acr_login_server }} -u {{ vault_acr_username }} -p {{ vault_acr_password }}'
+      become_user: azureuser
+      changed_when: true
+      no_log: true
+
+    - name: 'Start services'
+      ansible.builtin.command:
+        cmd: 'docker compose up -d'
+        chdir: '{{ app_dir }}'
+      become_user: azureuser
+      changed_when: true
+
+    - name: 'Wait for health check'
+      ansible.builtin.uri:
+        url: 'http://localhost:8000/health'
+        status_code: 200
+      register: health
+      retries: 15
+      delay: 4
+      until: health.status == 200

@@ -1,0 +1,9 @@
+# S3 backend configuration
+# Copy to backend.s3.hcl and fill in values
+# Create the bucket first: aws s3 mb s3://api-observatory-tfstate-<account-id>
+
+bucket         = "api-observatory-tfstate-ACCOUNT_ID"
+key            = "dev/terraform.tfstate"
+region         = "eu-central-1"
+encrypt        = true
+dynamodb_table = "api-observatory-tflock"

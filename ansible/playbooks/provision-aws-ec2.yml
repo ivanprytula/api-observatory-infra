@@ -1,0 +1,16 @@
+---
+# Provision AWS EC2 instance for api-observatory.
+# Mirrors provision-azure-vm.yml but targets AWS.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/provision-aws-ec2.yml -l aws_dev
+
+- name: Provision AWS EC2 instance
+  hosts: aws_dev
+  become: true
+
+  roles:
+    - common
+    - docker
+    - app
+    - monitoring

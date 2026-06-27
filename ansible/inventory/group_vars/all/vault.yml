@@ -1,0 +1,17 @@
+---
+# IMPORTANT: This file MUST be encrypted with ansible-vault before committing.
+#
+# Encrypt:  ansible-vault encrypt inventory/group_vars/all/vault.yml
+# Edit:     ansible-vault edit   inventory/group_vars/all/vault.yml
+# Decrypt:  ansible-vault decrypt inventory/group_vars/all/vault.yml
+#
+# All variable names are prefixed with vault_ to make lookups easy.
+# vars.yml references these via Jinja2: db_password: "{{ vault_db_password }}"
+#
+# Replace every CHANGEME value before encrypting.
+
+vault_api_v1_bearer_token: 'CHANGEME'
+vault_db_password: 'CHANGEME'
+vault_docs_password: 'CHANGEME'
+vault_jwt_secret: 'CHANGEME-must-be-at-least-32-characters-long'
+vault_openai_api_key: 'sk-CHANGEME'

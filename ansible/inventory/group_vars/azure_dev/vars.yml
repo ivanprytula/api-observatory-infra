@@ -1,0 +1,15 @@
+---
+# Azure dev environment variables (non-sensitive).
+# Secrets are in vault.yml (ansible-vault encrypted).
+
+azure_resource_group: 'api-observatory-rg'
+azure_vm_name: 'api-observatory-vm'
+azure_location: 'polandcentral'
+acr_login_server: '{{ vault_acr_login_server }}'
+
+compose_env:
+  database_url: '{{ vault_database_url }}'
+  jwt_secret: '{{ vault_jwt_secret }}'
+  cache_url: 'redis://localhost:6379/0'
+  environment: 'production'
+  log_level: 'info'

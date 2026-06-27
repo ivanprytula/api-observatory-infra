@@ -1,0 +1,11 @@
+---
+# Encrypted secrets for Azure dev environment.
+# Encrypt: ansible-vault encrypt inventory/group_vars/azure_dev/vault.yml
+# Decrypt: ansible-vault decrypt inventory/group_vars/azure_dev/vault.yml
+# Edit:    ansible-vault edit inventory/group_vars/azure_dev/vault.yml
+
+vault_database_url: 'CHANGEME'
+vault_jwt_secret: 'CHANGEME-must-be-at-least-32-characters-long'
+vault_acr_login_server: 'CHANGEME.azurecr.io'
+vault_acr_username: 'CHANGEME'
+vault_acr_password: 'CHANGEME'

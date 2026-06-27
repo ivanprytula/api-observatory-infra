@@ -1,0 +1,9 @@
+# Azure dev environment — copy to terraform.tfvars and fill in
+subscription_id   = "your-azure-subscription-id"
+location          = "polandcentral"
+vm_size           = "Standard_B1s"
+admin_cidr        = "203.0.113.1/32"  # Replace with your public IP
+ssh_public_key    = "ssh-rsa AAAA..."
+pg_admin_user     = "pgadmin"
+pg_admin_password = "CHANGE_ME"
+pg_database_name  = "api_observatory"
