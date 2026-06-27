@@ -90,6 +90,10 @@ resource "azurerm_network_security_group" "vm" {
   }
 
   security_rule {
+    # Restrict to admin CIDR until DNS + HTTPS are configured.
+    # When you need to allow a specific user, change the source_address_prefix to their IP.
+    # Once DNS + HTTPS are in place, change to "*" for general access
+    # (the HTTPS rule already allows 443 from "*").
     name                       = "HTTP"
     priority                   = 1001
     direction                  = "Inbound"
@@ -97,7 +101,7 @@ resource "azurerm_network_security_group" "vm" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "80"
-    source_address_prefix      = "*"
+    source_address_prefix      = var.admin_cidr
     destination_address_prefix = "*"
   }
 

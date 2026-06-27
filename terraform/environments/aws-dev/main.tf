@@ -15,6 +15,8 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 # ─── Networking ────────────────────────────────────────────────────────────────
 
 resource "aws_vpc" "main" {
@@ -84,11 +86,15 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
+    # Restrict to admin CIDR until DNS + HTTPS are configured.
+    # When you need to allow a specific user, change this CIDR to their IP (e.g. "X.X.X.X/32").
+    # Once DNS + HTTPS are in place, change to "0.0.0.0/0" for general access
+    # (and add a 443 ingress rule for HTTPS).
     description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.admin_cidr]
   }
 
   ingress {
@@ -183,6 +189,7 @@ resource "aws_instance" "app" {
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.project}"
   retention_in_days = 400
+  kms_key_id        = aws_kms_key.main.arn
 
   tags = {
     Project = var.project
@@ -247,6 +254,97 @@ resource "aws_flow_log" "main" {
   tags = {
     Project = var.project
   }
+}
+
+# ─── KMS Key ──────────────────────────────────────────────────────────────────
+# Used for CloudWatch Log Group encryption and RDS Performance Insights.
+
+resource "aws_kms_key" "main" {
+  description             = "KMS key for CloudWatch Logs and RDS Performance Insights"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudWatch Logs to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${var.aws_region}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow RDS Performance Insights to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "pi.${var.aws_region}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Project = var.project
+  }
+}
+
+resource "aws_kms_alias" "main" {
+  name          = "alias/${var.project}-key"
+  target_key_id = aws_kms_key.main.id
+}
+
+# ─── RDS Enhanced Monitoring Role ──────────────────────────────────────────────
+
+resource "aws_iam_role" "rds_enhanced_monitoring" {
+  name = "${var.project}-rds-monitoring-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "monitoring.rds.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Project = var.project
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
+  role       = aws_iam_role.rds_enhanced_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
 # ─── RDS PostgreSQL ────────────────────────────────────────────────────────────
@@ -314,6 +412,9 @@ resource "aws_db_instance" "main" {
   iam_database_authentication_enabled   = true
   performance_insights_enabled          = true
   performance_insights_retention_period = 7
+  performance_insights_kms_key_id       = aws_kms_key.main.arn
+  monitoring_role_arn                   = aws_iam_role.rds_enhanced_monitoring.arn
+  monitoring_interval                   = 60
   storage_encrypted                     = true
   deletion_protection                   = true
   skip_final_snapshot                   = false
