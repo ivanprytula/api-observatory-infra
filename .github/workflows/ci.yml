@@ -10,16 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: Terraform (${{ matrix.env }})
+  terraform-fmt:
+    name: Terraform Format
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        env: [azure-dev, azure-sandbox, aws-dev, aws-sandbox]
-    defaults:
-      run:
-        working-directory: terraform/environments/${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,13 +21,26 @@ jobs:
           terraform_version: "~> 1.9"
 
       - name: Terraform fmt
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive terraform/
 
-      - name: Terraform init
-        run: terraform init -backend=false
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Terraform validate
-        run: terraform validate
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      - name: Validate all environments
+        run: |
+          for dir in terraform/environments/*/; do
+            echo "::group::Validating ${dir}"
+            terraform -chdir="$dir" init -backend=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
 
   tflint:
     name: TFLint
