@@ -40,6 +40,33 @@ resource "azurerm_storage_account" "app" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   public_network_access_enabled   = false
+
+  blob_properties {
+    versioning_enabled = true
+
+    delete_retention_policy {
+      days = 7
+    }
+
+    container_delete_retention_policy {
+      days = 7
+    }
+  }
+
+  queue_properties {
+    logging {
+      version = "1.0"
+      delete  = true
+      read    = true
+      write   = true
+    }
+
+    hour_metrics {
+      enabled               = true
+      version               = "1.0"
+      retention_policy_days = 7
+    }
+  }
 }
 
 resource "azurerm_storage_container" "snapshots" {

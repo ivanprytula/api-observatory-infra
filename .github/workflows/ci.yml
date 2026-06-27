@@ -78,7 +78,15 @@ jobs:
           quiet: true
           compact: true
           soft_fail: true
-          skip_check: CKV_TF_1
+          # CKV2_AZURE_57 skipped: VNet integration (delegated subnet) is the
+          # recommended approach for PostgreSQL Flexible Server, not private endpoint.
+          # CKV_AZURE_43 skipped: storage account name uses replace() with a
+          # variable — cannot be statically validated by Checkov.
+          # CKV_AZURE_50 skipped: no VM extensions installed (false positive).
+          # CKV_AZURE_206 skipped: LRS replication is correct for sandbox/emulator.
+          # CKV_AWS_130 skipped: public subnets are intentional for dev.
+          # CKV_AWS_157 skipped: Multi-AZ is a cost decision for dev.
+          skip_check: CKV_TF_1, CKV2_AZURE_57, CKV_AZURE_43, CKV_AZURE_50, CKV_AZURE_206, CKV_AWS_130, CKV_AWS_157
 
   helm-lint:
     name: Helm Lint
