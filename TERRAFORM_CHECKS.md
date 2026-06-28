@@ -50,6 +50,12 @@ When migrating to K8s (post-MVP), re-enable and document as architectural decisi
 - **Deployment target**: AWS EC2 / Azure VMs (not K8s in MVP)
 - **K8s manifests**: Kept as future reference, not scanned in MVP
 
+## Tracked Decisions (not Checkov skips — deliberate choices with a revisit trigger)
+
+| Decision | Current choice | Rationale | Revisit when |
+|----------|---------------|-----------|--------------|
+| Provider lockfile (`.terraform.lock.hcl`) | **Gitignored** (`.gitignore:6`) — not committed | Single-maintainer MVP: no lock-diff noise in PRs, CI re-resolves latest-matching on each `init -backend=false`. Trade-off: **not reproducible** — two applies days apart may use different provider patch versions, weakening the baseline's "pinned provider versions" guarantee. | **Stage 3** (K8s / multi-machine / production `apply`). Commit the lock (Terraform's official recommendation) for reproducible, auditable builds and proper Dependabot lock bumps. See [evolution-plan.md](docs/architecture/evolution-plan.md). |
+
 ## Review Cadence
 
 Re-evaluate these skips:
@@ -57,7 +63,10 @@ Re-evaluate these skips:
 - Budget allows CloudWatch costs → enable Flow Logs + Query Logging
 - Migrate to production (post-MVP) → enable Multi-AZ, CMK, private endpoints
 - Free tier expires → baseline hardening required for paid tiers
+- **Stage 3 (multi-machine / production apply) → commit `.terraform.lock.hcl`** (see Tracked Decisions)
+
+> **Provider-major reminder:** after any AWS/Azure provider major bump (e.g. AWS v5→v6, applied 2026-06-29), run `terraform plan` and eyeball the diff for unexpected resource replacements **before** `apply`. `terraform validate` (what CI runs) confirms schema validity but not plan-time diffs against real cloud state.
 
 ---
 
-**Last updated**: 2026-06-28
+**Last updated**: 2026-06-29
