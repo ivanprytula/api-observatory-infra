@@ -52,6 +52,28 @@ Kubernetes, monitoring, and Helm are cloud-neutral.
 - Kustomize overlays in `kubernetes/overlays/` for environment-specific patches.
 - Network policies are mandatory for all services.
 
+## Plan Maintenance
+
+The infrastructure evolution plan is a **living document** that must be kept current as the system
+grows from modulith-on-VM → microservices → full K8s/GitOps.
+
+- **Plan:** `docs/architecture/evolution-plan.md` (greenfield blueprint + staged evolution + changelog).
+- **Baseline:** `docs/architecture/baseline-checklist.md` (non-negotiable Security/SRE; the 10
+  resolved issue categories that must never regress).
+
+**Update triggers** (update the plan in the same PR as the change):
+
+- **Adding a service** → update `docs/app-repo-contract.md`, add a per-service observability target
+  (Prometheus job + Grafana dashboard), re-check the evolution-plan trigger table.
+- **Adding an environment** → apply the full `baseline-checklist.md`; any new Checkov skip must
+  land in `TERRAFORM_CHECKS.md` with a fix timeline.
+- **Advancing a stage** → add a changelog row in `evolution-plan.md` with the triggering signal and
+  bump the **Status** line.
+- **Deferring a Checkov check** → record it in `TERRAFORM_CHECKS.md` with justification + fix
+  timeline; note it against the matching baseline item if security-relevant.
+
+Append, don't rewrite. Keep the changelog honest about the system's actual stage.
+
 ## Git & Commits
 
 - Use conventional commit prefixes: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`.

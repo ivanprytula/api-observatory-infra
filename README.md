@@ -3,7 +3,8 @@
 Multi-cloud Infrastructure-as-Code for the [API Observatory](https://github.com/ivanprytula/api-observatory) platform.
 
 Supports **Azure** and **AWS** side-by-side via directory-per-cloud layout.
-See [docs/cloud-comparison.md](docs/cloud-comparison.md) for architectural decision log.
+See [docs/cloud-comparison.md](docs/cloud-comparison.md) for architectural decision log and
+[docs/architecture/](docs/architecture/) for the infrastructure evolution plan (modulith → microservices → K8s) and the baked-in Security/SRE baseline.
 
 ## Repository Structure
 
