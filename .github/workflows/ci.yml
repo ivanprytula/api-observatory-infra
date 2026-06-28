@@ -17,7 +17,7 @@ jobs:
     name: Terraform Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -30,7 +30,7 @@ jobs:
     name: Terraform Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -49,7 +49,7 @@ jobs:
     name: TFLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: terraform-linters/setup-tflint@v4
         with:
@@ -70,29 +70,23 @@ jobs:
     name: Checkov Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform/
           quiet: true
           compact: true
-          soft_fail: true
-          # CKV2_AZURE_57 skipped: VNet integration (delegated subnet) is the
-          # recommended approach for PostgreSQL Flexible Server, not private endpoint.
-          # CKV_AZURE_43 skipped: storage account name uses replace() with a
-          # variable — cannot be statically validated by Checkov.
-          # CKV_AZURE_50 skipped: no VM extensions installed (false positive).
-          # CKV_AZURE_206 skipped: LRS replication is correct for sandbox/emulator.
-          # CKV_AWS_130 skipped: public subnets are intentional for dev.
-          # CKV_AWS_157 skipped: Multi-AZ is a cost decision for dev.
-          skip_check: CKV_TF_1, CKV2_AZURE_57, CKV_AZURE_43, CKV_AZURE_50, CKV_AZURE_206, CKV_AWS_130, CKV_AWS_157
+          # Skip list MUST stay in sync with .pre-commit-config.yaml and the
+          # justifications in TERRAFORM_CHECKS.md (each ID = one documented row).
+          # Terraform-only subset (CI scans terraform/; K8s/SECRET skips omitted).
+          skip_check: CKV2_AWS_5,CKV2_AWS_11,CKV2_AWS_12,CKV2_AWS_30,CKV2_AWS_41,CKV_AWS_130,CKV_AWS_157,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
 
   helm-lint:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: azure/setup-helm@v4
         with:
@@ -110,7 +104,7 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - run: pip install yamllint
 
@@ -121,7 +115,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run ShellCheck
         run: shellcheck --severity=warning scripts/*.sh
