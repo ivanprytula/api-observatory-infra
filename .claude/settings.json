@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/vault.yml)",
+      "Read(**/*.tfvars)",
+      "Read(**/terraform.tfstate*)",
+      "Bash(cat **/vault.yml)",
+      "Bash(cat **/*.tfvars)",
+      "Bash(cat **/terraform.tfstate*)",
+      "Bash(ansible-vault view *)",
+      "Bash(ansible-vault decrypt *)",
+      "Bash(terraform apply *)",
+      "Bash(terraform destroy *)",
+      "Bash(terraform import *)",
+      "Bash(kubectl delete *)",
+      "Bash(kubectl exec *)",
+      "Bash(kubectl apply *)",
+      "Bash(helm install *)",
+      "Bash(helm upgrade *)",
+      "Bash(helm delete *)",
+      "Bash(ansible-playbook *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -qiE '(printenv|\\benv\\b|export|echo.*PASSWORD|echo.*SECRET|echo.*TOKEN|ansible-vault (view|decrypt)|terraform output -json)'; then echo 'BLOCKED: Command may leak secrets' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

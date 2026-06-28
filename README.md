@@ -41,19 +41,34 @@ just helm-lint                           # lint all charts
 
 ## Contract with App Repo
 
-| Contract         | Azure              | AWS              |
-|------------------|--------------------|------------------|
-| Image registry   | ACR                | ECR              |
-| Image tag format | `tree-<SHA>`       | `tree-<SHA>`     |
-| Ingestor health  | `GET /health` `:8000` | Same          |
-| Dashboard health | Port `8501`        | Same             |
-| Config schema    | App repo `.env.example` | Same        |
+| Contract         | Azure                   | AWS          |
+| ---------------- | ----------------------- | ------------ |
+| Image registry   | ACR                     | ECR          |
+| Image tag format | `tree-<SHA>`            | `tree-<SHA>` |
+| Ingestor health  | `GET /health` `:8000`   | Same         |
+| Dashboard health | Port `8501`             | Same         |
+| Config schema    | App repo `.env.example` | Same         |
 
 ## Target Clouds
 
-| Cloud | Free Tier | Compute | Database | Local Emulator |
-|---|---|---|---|---|
-| Azure | B1s 750 hrs/mo (ongoing) | VM | PostgreSQL Flexible Server | floci-az |
-| AWS | t2.micro 750 hrs/mo (12 months) | EC2 | RDS PostgreSQL | floci-aws |
+| Cloud | Free Tier                       | Compute | Database                   | Local Emulator |
+| ----- | ------------------------------- | ------- | -------------------------- | -------------- |
+| Azure | B1s 750 hrs/mo (ongoing)        | VM      | PostgreSQL Flexible Server | floci-az       |
+| AWS   | t2.micro 750 hrs/mo (12 months) | EC2     | RDS PostgreSQL             | floci-aws      |
 
 Production path: Kubernetes (k3d local → AKS/EKS).
+
+## Prerequisites
+
+Pre-commit hooks run most checks in isolated environments. The following system
+packages must be installed separately (not available as pre-commit hooks):
+
+- **terraform** — `terraform fmt`, `terraform validate`
+- **tflint** — `terraform_tflint` hook, install via [tflint.io/docs/install](https://tflint.io/docs/install)
+
+Additional tools used outside pre-commit (scripts, manual runs):
+
+- **jq**, **curl**, **unzip**, **gnupg**, **azure-cli**, **aws-cli** — see deployment guide
+- **docker**, **kubectl**, **helm**, **k3d**, **just** — local dev tooling
+
+See [docs/deployment/deployment-guide.md](docs/deployment/deployment-guide.md) for full setup.

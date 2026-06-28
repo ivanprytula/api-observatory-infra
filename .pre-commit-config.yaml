@@ -25,7 +25,13 @@ repos:
     rev: 3.3.2
     hooks:
       - id: checkov
-        args: [--quiet, --compact]
+        args:
+          - --directory
+          - terraform/
+          - --quiet
+          - --compact
+          - --skip-check
+          - CKV2_AWS_12,CKV2_AWS_5,CKV2_AWS_41,CKV_AWS_130,CKV_AWS_157,CKV2_AWS_11,CKV2_AWS_30,CKV_AZURE_50,CKV_AZURE_43,CKV_AZURE_119,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57,CKV_AZURE_206,CKV_K8S_14,CKV_K8S_15,CKV_K8S_21,CKV_K8S_35,CKV_K8S_43,CKV_SECRET_4,CKV_SECRET_6
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0

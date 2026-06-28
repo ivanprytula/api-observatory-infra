@@ -22,7 +22,9 @@ spec:
         app.kubernetes.io/component: consumer
     spec:
       securityContext:
-        fsGroup: 1001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -71,8 +73,8 @@ spec:
           resources:
 {{ toYaml .Values.resources | indent 12 }}
           securityContext:
-            runAsUser: 1001
-            runAsGroup: 1001
+            runAsUser: 10001
+            runAsGroup: 10001
             runAsNonRoot: true
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
