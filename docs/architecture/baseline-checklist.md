@@ -84,4 +84,41 @@ that reintroduces one of these is a regression:
 
 ---
 
+## OWASP coverage (evolving threat mapping)
+
+OWASP lists change on multi-year cycles (Top 10: 2017 → 2021 → 2025). We **don't** chase every
+revision or adopt a new scanner per category — instead we map each OWASP category to a control we
+**already own**, make coverage visible, and re-check yearly. New tooling is added only when a
+mapping has a real gap (a justified P1/P2 exception, filed as a ticket).
+
+**Lists that apply (and when):**
+
+- **OWASP API Security Top 10** — primary; we are API-first (ingestor/webhook).
+- **OWASP Top 10 (web)** — primary; FastAPI services + Streamlit dashboard.
+- **OWASP Top 10 CI/CD Security Risks** — becomes primary at Stage 3+ (GitOps/supply-chain).
+- **Kubernetes / Cloud-Native lists** — deferred until Stage 3 (consistent with the staged plan).
+
+**Category → control mapping** (current as of the date below; update each yearly review):
+
+| OWASP theme | Owned by | Status |
+|-------------|----------|--------|
+| IaC misconfiguration (broken access control, misconfig) | Checkov (CI + pre-commit) | ✅ active |
+| Secrets exposure / cryptographic failures | `detect-private-key`, `.claude/settings.json` deny rules, Ansible Vault, KMS/TLS baseline items 2–3, 12 | ✅ active |
+| Vulnerable & outdated components | Dependabot (`.github/dependabot.yml`) | ✅ active |
+| Security misconfiguration (network/IAM) | baseline items 4–11 (egress, ingress, IAM, logging) | ✅ active |
+| Injection / insecure design (app code) | App-repo responsibility; **gap at infra layer** → candidate: Semgrep/Bandit SAST when app code lands in scope | ⚠ gap — ticket if needed |
+| Vulnerable container images | **gap** → candidate: Trivy image scan in CI at Stage 2+ (first per-service image) | ⚠ gap — Stage 2 trigger |
+| CI/CD pipeline integrity (poisoned pipeline, unsigned artifacts) | partial; full coverage = Stage 4 (cosign/SBOM/admission policy) | ◑ staged |
+
+> Gaps are **acknowledged, not silently accepted** — each has a trigger (stage or ticket). Adding
+> Semgrep/Trivy/cosign is a justified tooling addition (P1/P2), not preemptive overengineering.
+
+**Yearly OWASP review (cadence):** every **June** (anchored to this doc's creation), re-read the
+current OWASP API + Web Top 10, update the table above, and file any new gap as a ticket. This
+review is a trigger in [evolution-plan.md](./evolution-plan.md) → "How to extend".
+
+> The OWASP mapping **extends** the never-regress list above — it never replaces it.
+
+---
+
 **Last updated**: 2026-06-28 · Maintained per [evolution-plan.md](./evolution-plan.md) → "How to extend".

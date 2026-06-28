@@ -194,6 +194,10 @@ When the system changes, update this doc in the same PR. Triggers:
   bump the **Status** line at the top.
 - **Deferring a Checkov check** → it must appear in `TERRAFORM_CHECKS.md` with justification + fix
   timeline, and (if security-relevant) be noted against the matching baseline item.
+- **Yearly OWASP review (every June)** → re-read the current OWASP API + Web Top 10, update the
+  [OWASP coverage table](./baseline-checklist.md#owasp-coverage-evolving-threat-mapping), file any
+  new gap as a ticket, and add a changelog row. New scanners (Semgrep/Trivy/cosign) are added only
+  to close a real gap — not preemptively.
 
 Append, don't rewrite. Keep the changelog honest about where the system actually is.
 
@@ -202,3 +206,5 @@ Append, don't rewrite. Keep the changelog honest about where the system actually
 | Date | Change | Stage | Trigger / reason |
 |------|--------|-------|------------------|
 | 2026-06-28 | Plan created; baseline + maintenance hooks established | Stage 0 | MVP modulith-on-VM; baking in resolved-issue baseline |
+| 2026-06-28 | Added guiding principles (P1 Python-first, P2 YAGNI, P3 vertical-slice) | Stage 0 | User reasoning rules |
+| 2026-06-28 | Added OWASP coverage mapping + yearly review cadence | Stage 0 | Evolving threat-protection need |
