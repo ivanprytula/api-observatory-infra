@@ -52,6 +52,23 @@ Kubernetes, monitoring, and Helm are cloud-neutral.
 - Kustomize overlays in `kubernetes/overlays/` for environment-specific patches.
 - Network policies are mandatory for all services.
 
+## Engineering Principles
+
+How to reason about solutions on this project (full text: `docs/architecture/evolution-plan.md` →
+"Guiding principles"):
+
+- **P1 — Python-first, justified polyglot.** Python is the default for *application code*; use
+  another language only when objectively better (performance, ecosystem, my skill depth, AI/LLM
+  tooling support) and note why. Operational/infra tooling (Terraform, Argo/Flux, Kyverno, cosign)
+  is exempt — adopting best-of-breed tools is not "going polyglot."
+- **P2 — YAGNI, boring, business-first.** Solve the client/business need professionally; prefer
+  proven boring solutions over clever ones; don't build scale/generality you don't need yet.
+  Boring ≠ sloppy. **Exception:** the Security/SRE baseline is non-negotiable — never YAGNI it away.
+  Beautiful-but-impractical code is hobby time, not client time.
+- **P3 — Vertical-slice estimation.** When scoping a task, trace the full slice and give an honest
+  range — a small ticket can be a 5-minute or a 5-hour change once migrations/contracts/tests/
+  rollout are counted. Surface the hidden cost up front.
+
 ## Plan Maintenance
 
 The infrastructure evolution plan is a **living document** that must be kept current as the system

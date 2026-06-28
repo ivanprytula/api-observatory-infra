@@ -25,6 +25,46 @@ two services on a VM.
 
 ---
 
+## Guiding principles
+
+How to *reason* about every decision below. These govern reading the plan and choosing solutions.
+
+### P1 — Python-first, openness to justified polyglot
+
+Python is the **default application language** (FastAPI services, Streamlit dashboard, async
+workers). Reach for another language/tool only when it is **objectively better** for the use
+case — measured against: performance/concurrency needs, ecosystem fit, the maintainer's skill
+depth, and how well current AI/LLM tooling supports writing and maintaining it. Document the
+*why* when you deviate (a one-line ADR note is enough).
+
+- **Application code** → Python by default. A polyglot service is a deliberate, justified exception
+  (e.g. a latency-critical path where Go/Rust pays for itself), and becomes a Stage 2→3 signal.
+- **Operational/infra tooling is exempt** from this rule. Terraform (HCL), GitOps (Argo/Flux),
+  policy (Kyverno/OPA), supply-chain (cosign) are best-of-breed ecosystem tools — adopting them is
+  not "going polyglot," and "Python-first" never means reimplementing them in Python.
+
+### P2 — YAGNI, boring solutions, business-first
+
+Optimize for **solving the business/client need in a professional manner** — that is what earns the
+paycheck. Prefer boring, proven, working solutions over clever ones. Don't build for scale,
+generality, or elegance you don't yet need; the staged structure of this plan *is* YAGNI applied to
+infrastructure — Stages 3–5 stay on paper until a concrete need (load, team, revenue) pulls them in.
+
+- **Professional, not sloppy:** boring ≠ careless. Code is still clean, tested, and reviewed.
+- **Non-negotiable exception — the baseline.** Security/SRE baseline items are *table stakes*, not
+  speculative gold-plating. "YAGNI" never argues away IMDSv2, encryption, scoped ingress, backups,
+  or the never-regress list. See [baseline-checklist.md](./baseline-checklist.md).
+- Beautiful-but-impractical engineering is hobby/open-source time, not client time.
+
+### P3 — Vertical-slice estimation (cohesion)
+
+When scoping a task ("a JIRA ticket"), answer as a **cohesive vertical slice**: trace the change
+end-to-end and give an honest range. A small-looking ticket can be a 5-minute change *or* a 5-hour
+one once migrations, contracts, tests, and rollout are accounted for — surface the hidden cost
+up front rather than discovering it mid-implementation.
+
+---
+
 ## Part A — Greenfield Blueprint (rebuild issue-free)
 
 Build in this order so each layer lands already-hardened. Every step satisfies a

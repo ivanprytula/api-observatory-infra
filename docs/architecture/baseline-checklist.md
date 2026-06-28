@@ -8,6 +8,10 @@ keep it enforced.
 
 > **Rule:** an environment/service is not "done" until every **Security** item passes, and not
 > "production-ready" until every **SRE** item exists.
+>
+> **YAGNI does not apply here.** These items are table stakes, not speculative gold-plating
+> (principle P2 in [evolution-plan.md](./evolution-plan.md)). "Boring/business-first" governs
+> *feature scope and architecture stages* — never the security/SRE baseline below.
 
 ---
 
