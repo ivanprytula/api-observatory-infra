@@ -27,6 +27,29 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: data-zoo/ingestor:latest
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: data-zoo-app-secrets
+                  key: database_url
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       containers:
         - name: ingestor
           image: data-zoo/ingestor:latest
@@ -41,6 +64,36 @@ spec:
                 secretKeyRef:
                   name: data-zoo-app-secrets
                   key: database_url
+            - name: INTERNAL_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: data-zoo-app-secrets
+                  key: internal_jwt_secret
+            - name: BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: data-zoo-app-secrets
+                  key: broker_url
+            - name: CACHE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: data-zoo-app-secrets
+                  key: cache_url
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: data-zoo-app-secrets
+                  key: admin_token
+            - name: INFERENCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: data-zoo-app-config
+                  key: inference_url
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: data-zoo-app-config
+                  key: otel_exporter_otlp_endpoint
             - name: ENVIRONMENT
               value: local
           startupProbe:

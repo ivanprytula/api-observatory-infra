@@ -4,3 +4,5 @@ metadata:
   name: data-zoo-app-config
 data:
   ingestor_url: "http://ingestor:8000"
+  inference_url: "http://inference:8001"
+  otel_exporter_otlp_endpoint: "http://jaeger:4317"

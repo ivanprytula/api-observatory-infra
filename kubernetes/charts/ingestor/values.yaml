@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: data-zoo/ingestor
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP
@@ -29,3 +29,11 @@ env:
 secrets:
   name: data-zoo-app-secrets
   databaseUrlKey: database_url
+  brokerUrlKey: broker_url
+  cacheUrlKey: cache_url
+  adminTokenKey: admin_token
+
+config:
+  name: data-zoo-app-config
+  inferenceUrlKey: inference_url
+  otelEndpointKey: otel_exporter_otlp_endpoint
