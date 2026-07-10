@@ -1,6 +1,6 @@
 ---
 # Provision and configure the Azure VM for API Observatory deployment.
-# Assumes the VM already exists (created by infra/scripts/azure-provision.sh or Terraform).
+# Assumes the VM already exists (created by `TF_ENV=azure-dev just tf apply`).
 #
 # Usage:
 #   ansible-playbook playbooks/provision-azure-vm.yml -i inventory/hosts.yml \

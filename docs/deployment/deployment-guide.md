@@ -23,28 +23,45 @@ GitHub Actions CI                    Azure Free Tier
 
 - Azure CLI installed and logged in: `az login`
 - SSH key pair (generated during VM provisioning)
-- GitHub repo secrets configured (see `docs/06-ci-cd/github-secrets-setup.md`)
+- GitHub repo secrets configured (see `docs/ci-cd/github-secrets-setup.md`)
 
 ## First-Time Setup
 
 ### 1. Provision Infrastructure
 
 ```bash
-bash infra/scripts/azure-provision.sh
+az login
+
+cp terraform/environments/azure-dev/terraform.tfvars.example terraform/environments/azure-dev/terraform.tfvars
+# fill in: subscription_id, admin_cidr (your public IP, curl ifconfig.me),
+#          ssh_public_key, pg_admin_password (strong, unique)
+
+TF_ENV=azure-dev just tf init    # no backend.azure.hcl yet -> local state, fine for first bootstrap
+TF_ENV=azure-dev just tf plan
+TF_ENV=azure-dev just tf apply
 ```
 
 This creates:
 
-- Resource group (`api-observatory-rg`)
-- B1s VM with Ubuntu 24.04 + Docker
+- Resource group, VNet, subnet, NSG (SSH, HTTP, HTTPS inbound)
+- B1s VM with public IP
 - PostgreSQL Flexible Server (B1ms, VNet-integrated, no public endpoint)
-- NSG rules (SSH, HTTP, HTTPS inbound; restricted outbound)
-- System-assigned managed identity on the VM
-- Credentials saved to `infra/scripts/.azure_credentials`
+
+Then configure the VM (Docker install, hardening):
+
+```bash
+# terraform output the VM's public IP, then update ansible/inventory/hosts.yml:
+#   azure_dev.ansible_host -> the real VM IP (currently a placeholder)
+just ansible-run provision-azure-vm
+```
+
+> `infra/scripts/azure-provision.sh` (imperative `az` CLI provisioning) predates this Terraform
+> setup and creates the same resource group/VM by a different path. Don't run both against the
+> same subscription — they'll collide or leave resources outside Terraform's state.
 
 ### 2. Configure GitHub Secrets
 
-Follow the checklist in `docs/06-ci-cd/github-secrets-setup.md`:
+Follow the checklist in `docs/ci-cd/github-secrets-setup.md`:
 
 - `ACR_LOGIN_SERVER`, `ACR_USERNAME`, `ACR_PASSWORD`
 - `AZURE_CREDENTIALS`, `AZURE_VM_SSH_KEY`, `AZURE_VM_HOST_KEY`
@@ -91,23 +108,16 @@ docker image prune -f --filter "until=48h"
 EOF
 ```
 
-## Local Development (Emulator)
+## Local Emulator Development
 
-```bash
-just floci-az-up          # start emulator + data-plane
-just floci-az-dev         # hot-reload dev against emulator
-just floci-az-validate    # verify emulator health
-just azure-preflight      # verify real Azure credentials
-```
+Floci-az emulator dev tooling (`sandbox-up`/`sandbox-dev`/`sandbox-validate`/`cloud-preflight`)
+lives in the `api-observatory` app repo, not here — this repo only provisions real cloud
+infrastructure. See that repo's `docs/07-deployment/deployment-guide.md`.
 
 ## Terraform
 
 ```bash
-TF_ENV=azure-sandbox just tf init    # local emulator
-TF_ENV=azure-sandbox just tf plan
-TF_ENV=azure-sandbox just tf apply
-
-TF_ENV=azure-dev just tf init        # real Azure
+TF_ENV=azure-dev just tf init        # real Azure — see "Provision Infrastructure" above
 TF_ENV=azure-dev just tf plan
 TF_ENV=azure-dev just tf apply
 ```
