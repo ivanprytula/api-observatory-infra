@@ -54,7 +54,8 @@ Kubernetes, monitoring, and Helm are cloud-neutral.
 
 ## Engineering Principles
 
-How to reason about solutions on this project (full text: `docs/architecture/evolution-plan.md` →
+Follow ACROSS (see `~/.claude/CLAUDE.md`) as the primary design lens, plus these infra-specific principles
+for how to reason about solutions on this project (full text: `docs/architecture/evolution-plan.md` →
 "Guiding principles"):
 
 - **P1 — Python-first, justified polyglot.** Python is the default for *application code*; use
