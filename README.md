@@ -2,7 +2,9 @@
 
 Multi-cloud Infrastructure-as-Code for the [API Observatory](https://github.com/ivanprytula/api-observatory) platform.
 
-Supports **Azure** and **AWS** side-by-side via directory-per-cloud layout.
+Supports Azure and AWS side-by-side via directory-per-cloud layout. **AWS is the
+primary portfolio deployment direction**; Azure remains secondary/reference
+infrastructure.
 See [docs/cloud-comparison.md](docs/cloud-comparison.md) for architectural decision log and
 [docs/architecture/](docs/architecture/) for the infrastructure evolution plan (modulith → microservices → K8s) and the baked-in Security/SRE baseline.
 
@@ -26,13 +28,13 @@ Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're 
 ## Quick Start
 
 ```bash
-# ─── Azure ─────────────────────────────────────
-TF_ENV=azure-dev just tf plan            # Azure cloud
-just ansible-run provision-azure-vm
-
 # ─── AWS ───────────────────────────────────────
 TF_ENV=aws-dev just tf plan              # AWS cloud
 just ansible-run provision-aws-ec2
+
+# ─── Azure (secondary/reference) ────────────────
+TF_ENV=azure-dev just tf plan
+just ansible-run provision-azure-vm
 
 # ─── Cloud-neutral ─────────────────────────────
 just k3d-up                              # local K8s cluster
@@ -42,13 +44,13 @@ just helm-lint                           # lint all charts
 
 ## Contract with App Repo
 
-| Contract         | Azure                   | AWS          |
-| ---------------- | ----------------------- | ------------ |
-| Image registry   | ACR                     | ECR          |
-| Image tag format | `tree-<SHA>`            | `tree-<SHA>` |
-| Ingestor health  | `GET /health` `:8000`   | Same         |
-| Dashboard health | Port `8501`             | Same         |
-| Config schema    | App repo `.env.example` | Same         |
+| Contract | AWS primary Stage 0 | Azure secondary/reference |
+| --- | --- | --- |
+| Image registry | ECR | ACR |
+| Deployable services | ingestor `:8000`, inference `:8001`, dashboard `:8501` | Same application contract |
+| Image tag format | `tree-<SHA>` | `tree-<SHA>` |
+| Compute | EC2 + Docker Compose | VM + Docker Compose |
+| Config schema | App repo environment contract | Same |
 
 ## Target Clouds
 
@@ -57,7 +59,8 @@ just helm-lint                           # lint all charts
 | Azure | B1s 750 hrs/mo (ongoing)        | VM      | PostgreSQL Flexible Server | floci-az       |
 | AWS   | t2.micro 750 hrs/mo (12 months) | EC2     | RDS PostgreSQL             | floci-aws      |
 
-Production path: Kubernetes (k3d local → AKS/EKS).
+Stage 0 is EC2 + Docker Compose; ECS/Fargate is a future Stage 2 option, and
+Kubernetes remains a later evolution path.
 
 ## Prerequisites
 

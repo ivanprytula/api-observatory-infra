@@ -1,5 +1,18 @@
 # App Repository — Infrastructure Contract Checklist
 
+## Primary Deployment Target
+
+AWS is the primary portfolio target. Stage 0 deploys the three HTTP services
+(`ingestor`, `inference`, and `dashboard`) with Docker Compose on EC2, RDS
+PostgreSQL, and immutable ECR images. ECS/Fargate remains a later Stage 2 option.
+MCP stays local stdio-only and is not a cloud service. Azure remains supported as
+secondary/reference infrastructure; this change does not remove it.
+
+The app repository owns the machine-readable service contract at
+`infra/deployment/aws-stage0-services.json`. Infra owns ECR, EC2, RDS, IAM, and
+runtime secret delivery; the app owns Dockerfiles, environment-variable names,
+ports, and health/readiness endpoints.
+
 ## Container Image Contract
 
 Each service image must satisfy these requirements for the infra manifests to function correctly.
@@ -19,7 +32,10 @@ Each service image must satisfy these requirements for the infra manifests to fu
 
 ### Security
 
-- [ ] **Application reads secrets from environment variables** — infra injects `DATABASE_URL`, `INTERNAL_JWT_SECRET`, `BROKER_URL`, `ADMIN_TOKEN` via `secretKeyRef` (not files). `QDRANT_URL` is injected only into the inference service, which owns Qdrant access post-MVP.
+- [ ] **Application reads secrets from environment variables** — AWS Stage 0 injects
+  `DATABASE_URL`, `INTERNAL_JWT_SECRET`, `BROKER_URL`, and `ADMIN_TOKEN` into
+  Compose. Inference uses pgvector through its `DATABASE_URL`; no Qdrant deployment
+  is required. Later ECS uses AWS Secrets Manager-backed task configuration.
 - [ ] **No secrets in logs** — log scrubbing for env var values is the app's responsibility
 - [ ] **No `root` required** — app must work with `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, and `capabilities.drop: [ALL]`
 - [ ] **No privileged ports** (<1024) — apps bind to ephemeral/high ports only
@@ -34,7 +50,7 @@ Each service image must satisfy these requirements for the infra manifests to fu
 - [ ] **Tags follow `tree-<SHA>` format** — CI in the app repo builds and pushes images tagged with the short commit SHA prefixed by `tree-`
 - [ ] **`latest` is never pushed** to production registries — `latest` is used only for local `k3d import`
 - [ ] **Image pull policy is `Always`** in production — guaranteed fresh pods on rollout
-- [ ] **Container registry matches target cloud** — `acr.azure.io/*` for Azure, `*.dkr.ecr.*.amazonaws.com/*` for AWS
+- [ ] **Primary registry is ECR** — `${AWS_ECR_REGISTRY}/api-observatory/{ingestor,inference,dashboard}:tree-<SHA>`; Azure ACR is secondary/reference only.
 
 ## Communication Contract
 

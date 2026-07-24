@@ -118,7 +118,8 @@ deployed. → checklist items K1–K7.
 Each stage has **entry triggers** (don't advance early) and a **migration path**.
 
 ### Stage 0 — Modulith on VM (current MVP)
-One deployable, Docker Compose, single VM per cloud. Redpanda/Redis/Postgres managed or co-located.
+One deployable, Docker Compose, single VM per cloud. AWS EC2 + RDS is the primary
+portfolio target; Azure remains secondary/reference infrastructure. Redpanda/Redis/Postgres managed or co-located.
 **Exit triggers →** deploy friction (>1 risky deploy/week) · a module needing independent scaling ·
 a second team/owner · sustained CPU/mem pressure on the VM.
 

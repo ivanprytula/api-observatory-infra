@@ -1,4 +1,10 @@
-# Deployment Guide (Azure Free Tier)
+# Deployment Guide (Azure Reference)
+
+> AWS is the primary portfolio deployment target: Stage 0 uses EC2 + Docker
+> Compose, RDS PostgreSQL, ECR, and GitHub Actions OIDC. This Azure document is
+> retained as secondary/reference material; do not use it as the default path for
+> new deployment work. See the app repository's AWS deployment guide and the
+> `aws-dev` Terraform environment for the primary path.
 
 ## Overview
 
