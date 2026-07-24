@@ -16,7 +16,7 @@ This file is deliberately lean. Three groups of rules live here:
 2. **How to behave around files** — read scope, secrets, credential stores, `.gitignore`.
 3. **Cross-project technical conventions** — short checklists and links; deep content lives in the project.
 
-The repository's own `.github/skills/` carry the long-form, invokable procedures. AGENTS.md carries the
+The repository's own `.github/skills/` carry the long-form, invocable procedures. AGENTS.md carries the
 principles so an agent can act in any project, then points to the project files for depth.
 
 ---
