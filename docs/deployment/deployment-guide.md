@@ -1,162 +1,99 @@
-# Deployment Guide (Azure Reference)
+# Deployment Guide — AWS Stage 0
 
-> AWS is the primary portfolio deployment target: Stage 0 uses EC2 + Docker
-> Compose, RDS PostgreSQL, ECR, and GitHub Actions OIDC. This Azure document is
-> retained as secondary/reference material; do not use it as the default path for
-> new deployment work. See the app repository's AWS deployment guide and the
-> `aws-dev` Terraform environment for the primary path.
+AWS Stage 0 is the primary portfolio deployment direction: immutable ECR images deployed with
+Docker Compose on one EC2 host, backed by RDS PostgreSQL. The configuration and workflows are
+present, but no completed live deployment is claimed.
 
-## Overview
+Real provisioning, deployment, and teardown are account mutations with possible cost. Review the
+plan and budget controls and obtain explicit approval before running them.
 
-The API Observatory deploys to a single Azure B1s VM running Docker Compose. CI builds and pushes images to Azure Container Registry (ACR). CD deploys via SSH to the VM.
+## Ownership and Contract
 
-## Architecture
+- The app repository owns service code, Dockerfiles, environment names, ports, health behavior, and
+  [`infra/deployment/aws-stage0-services.json`](https://github.com/ivanprytula/api-observatory/blob/main/infra/deployment/aws-stage0-services.json).
+- This repository owns `terraform/environments/aws-dev/`, EC2/RDS/IAM/networking, Ansible host
+  provisioning, and runtime secret delivery.
+- The canonical human-readable boundary is the app repository's
+  [deployment contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md).
 
-```text
-GitHub Actions CI                    Azure Free Tier
-┌──────────────┐                    ┌──────────────────────┐
-│ lint, test,  │                    │  B1s VM (Docker)     │
-│ build, scan  │──push images──►   │  ├─ ingestor:8000    │
-│              │                    │  ├─ dashboard:8501   │
-│  ACR push    │                    │  ├─ postgres:5432    │
-└──────┬───────┘                    │  ├─ redis:6379       │
-       │                            │  └─ nginx:80/443     │
-       │  CD (SSH deploy)           └──────────────────────┘
-       └────────────────────────────►  docker compose up -d
-```
+## Deployable Services
 
-## Prerequisites
+| Service | ECR repository | Port | Health/readiness |
+| --- | --- | ---: | --- |
+| ingestor | `api-observatory/ingestor` | 8000 | `/health`, `/readyz` |
+| inference | `api-observatory/inference` | 8001 | `/health`, `/readyz` |
+| dashboard | `api-observatory/dashboard` | 8501 | `/_stcore/health` |
 
-- Azure CLI installed and logged in: `az login`
-- SSH key pair (generated during VM provisioning)
-- GitHub repo secrets configured (see `docs/ci-cd/github-secrets-setup.md`)
+Images use `${AWS_ECR_REGISTRY}/api-observatory/<service>:tree-<SHA>`. The local stdio MCP server is
+not a cloud service.
 
-## First-Time Setup
+## Safe Preparation
 
-### 1. Provision Infrastructure
+1. Validate the app service contract and all three images locally.
+2. Review the `aws-dev` Terraform plan, Checkov skips, estimated cost, and teardown procedure.
+3. Configure an S3 backend and short-lived GitHub/AWS identities; do not use long-lived access keys.
+4. Provision infrastructure only after approval.
+5. Run the AWS Ansible playbook against the explicit `aws_dev` inventory target.
+6. Configure GitHub environment protection before enabling application CD.
 
-```bash
-az login
-
-cp terraform/environments/azure-dev/terraform.tfvars.example terraform/environments/azure-dev/terraform.tfvars
-# fill in: subscription_id, admin_cidr (your public IP, curl ifconfig.me),
-#          ssh_public_key, pg_admin_password (strong, unique)
-
-TF_ENV=azure-dev just tf init    # no backend.azure.hcl yet -> local state, fine for first bootstrap
-TF_ENV=azure-dev just tf plan
-TF_ENV=azure-dev just tf apply
-```
-
-This creates:
-
-- Resource group, VNet, subnet, NSG (SSH, HTTP, HTTPS inbound)
-- B1s VM with public IP
-- PostgreSQL Flexible Server (B1ms, VNet-integrated, no public endpoint)
-
-Then configure the VM (Docker install, hardening):
+Example validation commands that do not apply infrastructure:
 
 ```bash
-# terraform output the VM's public IP, then update ansible/inventory/hosts.yml:
-#   azure_dev.ansible_host -> the real VM IP (currently a placeholder)
-just ansible-run provision-azure-vm
+TF_ENV=aws-dev just tf fmt
+TF_ENV=aws-dev just tf validate
+TF_ENV=aws-dev just tf plan
+just ansible-lint
 ```
 
-> `infra/scripts/azure-provision.sh` (imperative `az` CLI provisioning) predates this Terraform
-> setup and creates the same resource group/VM by a different path. Don't run both against the
-> same subscription — they'll collide or leave resources outside Terraform's state.
+Inspect the generated plan before any `apply`. Never store a real plan containing sensitive values
+in the repository.
 
-### 2. Configure GitHub Secrets
+## Application Workflow Contract
 
-Follow the checklist in `docs/ci-cd/github-secrets-setup.md`:
+The application repository's workflows are disabled unless the required repository variables exist:
 
-- `ACR_LOGIN_SERVER`, `ACR_USERNAME`, `ACR_PASSWORD`
-- `AZURE_CREDENTIALS`, `AZURE_VM_SSH_KEY`, `AZURE_VM_HOST_KEY`
-- Create `dev` environment with approval gate
+- `AWS_ECR_REGISTRY`
+- `AWS_REGION`
+- `AWS_ROLE_ARN_CI`
+- `AWS_ROLE_ARN_DEV`
+- `AWS_ROLE_ARN_RELEASE`
+- `AWS_EC2_INSTANCE_ID_DEV`
 
-### 3. Deploy Docker Compose to VM
+CI builds/scans immutable candidates after OIDC authentication. The protected `aws-dev` workflow
+uses Systems Manager to pull the three `tree-<SHA>` images, restart only those services, and check
+their health endpoints. Release promotion copies an existing candidate to a semantic version tag;
+it does not publish `latest`.
 
-```bash
-VM_IP=$(az vm show --resource-group api-observatory-rg --name api-observatory-vm --show-details --query publicIps -o tsv)
-scp docker-compose.yml .env azureuser@${VM_IP}:~/app/
-ssh azureuser@${VM_IP} "cd ~/app && docker compose up -d"
-```
+## Verification and Rollback
 
-### 4. Verify
+After deployment, capture redacted evidence for:
 
-```bash
-curl http://${VM_IP}:8000/health
-curl http://${VM_IP}:8501/_stcore/health
-```
+1. the deployed `tree-<SHA>` version;
+2. all health/readiness endpoints;
+3. database connectivity and migrations;
+4. one authenticated application smoke path;
+5. metrics/log/trace correlation;
+6. restart and dependency-recovery behavior.
 
-## CI/CD Flow
+Rollback must select the previous immutable tree tag and repeat the same health gates. A rollback is
+unsafe if an incompatible database contraction has already executed; application and migration
+compatibility must be reviewed together.
 
-1. Push to `develop` → CI runs (lint, test, Docker build + push to ACR, Trivy scan)
-2. CI passes → CD triggers with manual approval gate
-3. CD: SSH into VM → `docker login` to ACR → `docker pull` → `docker compose up -d` → health check → smoke test
+## Teardown
 
-## Manual Deploy
+Before a temporary portfolio deployment, identify all expected billable resources and enable budget
+alerts. After evidence collection:
 
-```bash
-VM_IP=$(az vm show --resource-group api-observatory-rg --name api-observatory-vm --show-details --query publicIps -o tsv)
-TREE_SHA=$(git rev-parse HEAD^{tree} | cut -c1-7)
-ACR="<your-acr-name>.azurecr.io"
+1. preserve only intentionally retained, non-secret evidence;
+2. inspect the exact Terraform workspace and plan the destroy;
+3. obtain destructive-action approval;
+4. destroy the explicit `aws-dev` resources;
+5. verify that EC2, RDS, ECR storage, public IPs, logs, KMS resources, and remote-state resources match
+   the intended retention decision.
 
-ssh azureuser@${VM_IP} bash -s <<EOF
-set -euo pipefail
-cd ~/app
-docker pull ${ACR}/api-observatory/ingestor:tree-${TREE_SHA}
-docker pull ${ACR}/api-observatory/dashboard:tree-${TREE_SHA}
-docker tag ${ACR}/api-observatory/ingestor:tree-${TREE_SHA} api-observatory/ingestor:latest
-docker tag ${ACR}/api-observatory/dashboard:tree-${TREE_SHA} api-observatory/dashboard:latest
-docker compose down --timeout 30
-docker compose up -d
-docker image prune -f --filter "until=48h"
-EOF
-```
+Do not treat an EC2 stop operation as full cost teardown.
 
-## Local Emulator Development
+## Secondary Azure Reference
 
-Floci-az emulator dev tooling (`sandbox-up`/`sandbox-dev`/`sandbox-validate`/`cloud-preflight`)
-lives in the `api-observatory` app repo, not here — this repo only provisions real cloud
-infrastructure. See that repo's `docs/07-deployment/deployment-guide.md`.
-
-## Terraform
-
-```bash
-TF_ENV=azure-dev just tf init        # real Azure — see "Provision Infrastructure" above
-TF_ENV=azure-dev just tf plan
-TF_ENV=azure-dev just tf apply
-```
-
-## Cost
-
-All resources within Azure Free Tier (12-month window):
-
-| Resource | Free Limit | Usage |
-|----------|-----------|-------|
-| B1s VM | 750 hrs/month | ~730 hrs (always-on) |
-| ACR Standard | 1 unit/day | Image pushes on deploy |
-| Blob Storage (Hot LRS) | 5 GB | Backups, archives |
-| Data Transfer Out | 15 GB/month | API + dashboard traffic |
-
-Estimated monthly cost: **$0** (within free tier limits).
-
-## Troubleshooting
-
-### VM not responding
-
-```bash
-az vm start --resource-group api-observatory-rg --name api-observatory-vm
-```
-
-### Docker Compose issues on VM
-
-```bash
-ssh azureuser@${VM_IP} "cd ~/app && docker compose logs --tail=50"
-```
-
-### ACR login expired on VM
-
-```bash
-ssh azureuser@${VM_IP} "az acr login --name <your-acr-name>"
-```
+Azure Terraform and provisioning assets remain for comparison and foundational learning. They are
+secondary/reference infrastructure and should not be mixed into the AWS Stage 0 deployment claim.
