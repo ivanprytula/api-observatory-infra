@@ -81,7 +81,7 @@ grows from modulith-on-VM → microservices → full K8s/GitOps.
 
 **Update triggers** (update the plan in the same PR as the change):
 
-- **Adding a service** → update `docs/app-repo-contract.md`, add a per-service observability target
+- **Adding a service** → update the app repository's `docs/07-deployment/app-repo-contract.md`, add a per-service observability target
   (Prometheus job + Grafana dashboard), re-check the evolution-plan trigger table.
 - **Adding an environment** → apply the full `baseline-checklist.md`; any new Checkov skip must
   land in `TERRAFORM_CHECKS.md` with a fix timeline.

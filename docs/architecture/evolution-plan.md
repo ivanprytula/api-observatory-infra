@@ -98,7 +98,7 @@ run playbooks from repo root.
 
 ### A4 — Deploy layer: Docker Compose modulith (the MVP target)
 Single VM runs the modulith via Compose. App images follow the
-[container contract](../app-repo-contract.md): UID 10001, `/health` + `/readyz`, non-root,
+[canonical app contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md): UID 10001, `/health` + `/readyz`, non-root,
 read-only FS, secrets via env, `tree-<SHA>` tags.
 
 ### A5 — Observability from day one
@@ -186,7 +186,7 @@ form a never-regress list.
 
 When the system changes, update this doc in the same PR. Triggers:
 
-- **Adding a service** → update [app-repo-contract.md](../app-repo-contract.md), add a per-service
+- **Adding a service** → update the [canonical app contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md), add a per-service
   observability target (Prometheus job + dashboard), and re-check the [trigger summary](#trigger-summary).
 - **Adding an environment** → apply the **full** [baseline-checklist](./baseline-checklist.md);
   every new Checkov skip must land in [TERRAFORM_CHECKS.md](../../TERRAFORM_CHECKS.md) with a fix

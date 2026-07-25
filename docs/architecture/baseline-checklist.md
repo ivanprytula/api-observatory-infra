@@ -41,7 +41,7 @@ Each row maps to a concrete control. Where a Checkov ID is listed, that check mu
 
 | # | MUST | Reference |
 |---|------|-----------|
-| K1 | Containers run as non-root **UID 10001**, read-only root FS, drop ALL caps | [app-repo-contract.md](../app-repo-contract.md); all deployment manifests |
+| K1 | Containers run as non-root **UID 10001**, read-only root FS, drop ALL caps | [canonical app contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md); all deployment manifests |
 | K2 | `seccompProfile: RuntimeDefault` + `allowPrivilegeEscalation: false` | deployment securityContext blocks |
 | K3 | Network policies mandatory; **DNS egress restricted to kube-dns** (not global) | `kubernetes/manifests/network-policies/06-*`, `07-*` |
 | K4 | Namespace injected by Kustomize (manifests namespace-agnostic) | `kubernetes/overlays/local/kustomization.yaml` |

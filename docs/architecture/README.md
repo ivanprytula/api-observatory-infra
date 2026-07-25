@@ -11,7 +11,7 @@ System design and infrastructure evolution reference for api-observatory-infra.
 
 ## Related references
 
-- [../app-repo-contract.md](../app-repo-contract.md) — container image contract with the app repo (UID, health endpoints, secrets, tagging).
+- [App repository contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md) — canonical image, port, health, environment, and secret-delivery boundary.
 - [../cloud-comparison.md](../cloud-comparison.md) — AWS vs Azure decision log.
 - [../../TERRAFORM_CHECKS.md](../../TERRAFORM_CHECKS.md) — Checkov skip list with justifications + fix timelines.
 - [../operations/](../operations/) — observability, webhooks, and the 5 runbooks.
