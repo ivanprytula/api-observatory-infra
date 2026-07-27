@@ -102,12 +102,14 @@ Keep active documentation about current technical state; Git history carries pro
 ### opencode (Global)
 
 Security rules are enforced globally via `~/.config/opencode/opencode.jsonc`:
+
 - **HITL**: `bash: ask`, `task: ask`, `doom_loop: deny`, `webfetch: ask`
 - **Filesystem**: deny `read` on `**/vault.yml`, `**/.env*`, `**/*secret*`; deny `external_directory` on `~/.ssh/`, `~/.aws/`, `~/.config/`, etc.
 - **Injection guard**: `SECURITY.md` loaded as instruction; `prompt-injection-guard` skill in `.opencode/skills/`
 - **Supply chain**: `skills.paths` restricted to `.opencode/skills` only
 
 Env vars for extra hardening (add to `~/.zshrc`):
+
 ```bash
 export OPENCODE_DISABLE_EXTERNAL_SKILLS=1
 export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
@@ -116,6 +118,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
 ### Claude Code (Project-Level)
 
 Security is enforced via `.claude/settings.json` (deny rules, hooks):
+
 - `permissions.deny`: Blocks reading vault.yml, *.tfvars, terraform.tfstate*
 - `permissions.deny`: Blocks terraform apply/destroy/import, kubectl apply/delete/exec, helm install/upgrade/delete, ansible-playbook
 - `PreToolUse` hook: Blocks commands that dump env vars or decrypt secrets
