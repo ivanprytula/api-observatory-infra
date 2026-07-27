@@ -72,10 +72,10 @@ for how to reason about solutions on this project (full text: `docs/architecture
 
 ## Plan Maintenance
 
-The infrastructure evolution plan is a **living document** that must be kept current as the system
-grows from modulith-on-VM → microservices → full K8s/GitOps.
+The infrastructure evolution plan is a **living technical contract** kept current as the platform
+moves from one VM toward independently operated workloads and, only if justified, Kubernetes.
 
-- **Plan:** `docs/architecture/evolution-plan.md` (greenfield blueprint + staged evolution + changelog).
+- **Plan:** `docs/architecture/evolution-plan.md` (current platform contract, stages, and triggers).
 - **Baseline:** `docs/architecture/baseline-checklist.md` (non-negotiable Security/SRE; the 10
   resolved issue categories that must never regress).
 
@@ -85,12 +85,12 @@ grows from modulith-on-VM → microservices → full K8s/GitOps.
   (Prometheus job + Grafana dashboard), re-check the evolution-plan trigger table.
 - **Adding an environment** → apply the full `baseline-checklist.md`; any new Checkov skip must
   land in `TERRAFORM_CHECKS.md` with a fix timeline.
-- **Advancing a stage** → add a changelog row in `evolution-plan.md` with the triggering signal and
-  bump the **Status** line.
+- **Advancing a stage** → update the current contract/status and retain the triggering evidence in
+  the implementing change.
 - **Deferring a Checkov check** → record it in `TERRAFORM_CHECKS.md` with justification + fix
   timeline; note it against the matching baseline item if security-relevant.
 
-Append, don't rewrite. Keep the changelog honest about the system's actual stage.
+Keep active documentation about current technical state; Git history carries project-process history.
 
 ## Git & Commits
 

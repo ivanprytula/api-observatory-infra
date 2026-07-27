@@ -2,11 +2,15 @@
 
 Multi-cloud Infrastructure-as-Code for the [API Observatory](https://github.com/ivanprytula/api-observatory) platform.
 
-Supports Azure and AWS side-by-side via directory-per-cloud layout. **AWS is the
-primary portfolio deployment direction**; Azure remains secondary/reference
-infrastructure.
-See [docs/cloud-comparison.md](docs/cloud-comparison.md) for architectural decision log and
-[docs/architecture/](docs/architecture/) for the infrastructure evolution plan (modulith → microservices → K8s) and the baked-in Security/SRE baseline.
+AWS is the primary portfolio deployment direction; Azure remains secondary/reference
+infrastructure. The [evolution plan](docs/architecture/evolution-plan.md) owns platform stages and
+adoption triggers, while the [baseline](docs/architecture/baseline-checklist.md) owns durable
+security/SRE controls.
+
+For the whole product-to-platform story, start with the app-owned
+[Application Lifecycle and SDLC](https://github.com/ivanprytula/api-observatory/blob/main/docs/01-intro/application-lifecycle.md).
+It follows one vertical slice from idea and planning through development, delivery, operations,
+maintenance, and transformation, with direct links back to this repository at each platform stage.
 
 ## Repository Structure
 
@@ -20,27 +24,16 @@ kubernetes/              K8s manifests, Helm charts, overlays (cloud-neutral)
 monitoring/              Prometheus, Alertmanager, Grafana (cloud-neutral)
 security/                Seccomp profiles
 scripts/                 Provisioning, backup/restore (per-cloud variants)
-docs/                    CI/CD, deployment, operations, cloud comparison
+docs/                    CI, deployment, observability, recovery, evolution, baseline
 ```
 
 Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're dev tooling.
 
-## Quick Start
+## Working with the Repository
 
-```bash
-# ─── AWS ───────────────────────────────────────
-TF_ENV=aws-dev just tf plan              # AWS cloud
-just ansible-run provision-aws-ec2
-
-# ─── Azure (secondary/reference) ────────────────
-TF_ENV=azure-dev just tf plan
-just ansible-run provision-azure-vm
-
-# ─── Cloud-neutral ─────────────────────────────
-just k3d-up                              # local K8s cluster
-just k8s-apply-local                     # deploy to k3d
-just helm-lint                           # lint all charts
-```
+The [`Justfile`](Justfile) owns Terraform, Ansible, Kubernetes, Helm, backup/restore, and validation
+command syntax. Start with static validation and a reviewed Terraform plan. Any apply, deployment,
+restore, chaos action, or teardown requires explicit target review and approval.
 
 ## Contract with App Repo
 
@@ -52,15 +45,12 @@ just helm-lint                           # lint all charts
 | Compute | EC2 + Docker Compose | VM + Docker Compose |
 | Config schema | App repo environment contract | Same |
 
-## Target Clouds
+## Platform Direction
 
-| Cloud | Free Tier                       | Compute | Database                   | Local Emulator |
-| ----- | ------------------------------- | ------- | -------------------------- | -------------- |
-| Azure | B1s 750 hrs/mo (ongoing)        | VM      | PostgreSQL Flexible Server | floci-az       |
-| AWS   | t2.micro 750 hrs/mo (12 months) | EC2     | RDS PostgreSQL             | floci-aws      |
-
-Stage 0 is EC2 + Docker Compose; ECS/Fargate is a future Stage 2 option, and
-Kubernetes remains a later evolution path.
+Stage 0 co-locates the three application images on EC2 + Docker Compose with RDS and ECR. This is a
+planned/configured path, not a completed deployment. ECS/Fargate requires independent workload
+pressure; Kubernetes remains a later evidence-triggered stage. Azure assets are retained only for
+comparison and foundational learning.
 
 ## Prerequisites
 
@@ -70,9 +60,11 @@ packages must be installed separately (not available as pre-commit hooks):
 - **terraform** — `terraform fmt`, `terraform validate`
 - **tflint** — `terraform_tflint` hook, install via [tflint.io/docs/install](https://tflint.io/docs/install)
 
-Additional tools used outside pre-commit (scripts, manual runs):
+Additional tools used outside pre-commit:
 
 - **jq**, **curl**, **unzip**, **gnupg**, **azure-cli**, **aws-cli** — see deployment guide
 - **docker**, **kubectl**, **helm**, **k3d**, **just** — local dev tooling
 
-See [docs/deployment/deployment-guide.md](docs/deployment/deployment-guide.md) for full setup.
+Continue with the [deployment guide](docs/deployment/deployment-guide.md),
+[platform observability](docs/operations/observability.md), or
+[recovery guide](docs/operations/recovery-guide.md).
