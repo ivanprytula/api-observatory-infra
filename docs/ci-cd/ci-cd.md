@@ -1,8 +1,8 @@
 # Infrastructure CI
 
 The executable source of truth is [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
-This repository validates infrastructure; application build, release, OIDC variables, and AWS
-Stage 0 deployment workflows are owned by the app repository.
+This repository validates infrastructure; application CI, manual assurance, OIDC variables, and
+AWS Stage 0 deployment workflows are owned by the app repository.
 
 ## Validation Gates
 
@@ -23,9 +23,13 @@ deployed, or recovery was exercised.
 ## Cross-Repository Delivery
 
 The app [CI/CD guide](https://github.com/ivanprytula/api-observatory/blob/main/docs/06-ci-cd/ci-cd.md)
-owns candidate images, release promotion, and protected deployment. Its
+owns four-job routine CI, manual assurance, and protected manual deployment. Routine CI does not
+access AWS or publish images. Manual CD verifies the selected `develop` or `main` commit passed CI,
+then builds and pushes immutable ECR images before deployment. Its
 [OIDC setup](https://github.com/ivanprytula/api-observatory/blob/main/docs/06-ci-cd/github-secrets-setup.md)
-defines the required GitHub variables and IAM role responsibilities.
+defines the required GitHub variables and IAM role responsibilities, including narrowly scoped ECR
+push/inspect and SSM command permissions for the GitHub role; the EC2 instance role separately
+pulls images from ECR.
 
 This infra repository owns the cloud resources and policies those workflows consume. The current
 Terraform does not provision GitHub's OIDC provider or deployment roles, so they remain explicit

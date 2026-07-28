@@ -39,8 +39,11 @@ owns repository variables and least-privilege role responsibilities.
 
 ## Delivery and Verification
 
-App CI builds/scans immutable candidates. Release promotion reuses an existing candidate; protected
-CD uses Systems Manager to pull the selected `tree-<SHA>` images and verify health.
+Routine app CI builds and health-checks images locally without AWS credentials or registry
+publication. Manually triggered, CI-gated CD from `develop` or `main` uses GitHub OIDC to build and
+push `tree-<SHA>` images to ECR, resolves their digests, and uses Systems Manager to deploy the
+selected immutable references. Tag-based release promotion remains suspended until a live Stage 0
+deploy, rollback, and teardown have been exercised.
 
 Capture redacted evidence for the deployed image identity, health/readiness, migration result,
 authenticated critical path, signal correlation, dependency recovery, and infrastructure state.

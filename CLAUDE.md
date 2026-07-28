@@ -22,7 +22,8 @@ Kubernetes, monitoring, and Helm are cloud-neutral.
 
 ## Contract with App Repo
 
-- **Image tags**: CI in the app repo pushes images tagged `tree-<SHA>` (ACR or ECR)
+- **Image tags**: routine app CI builds images locally; manually triggered, CI-gated AWS CD pushes
+  `tree-<SHA>` images to ECR and deploys their digests
 - **Health endpoints**: Ingestor `/health` on port `8000`, Dashboard on port `8501`
 - **Env vars**: App documents required config in `.env.example`
 
