@@ -4,7 +4,7 @@ set -euo pipefail
 # AWS S3 restore variant — downloads backup from S3, then restores via restore.sh.
 #
 # Usage:
-#   ./restore-s3.sh postgres postgres/pg_api_observatory_20260101_120000.sql.gz
+#   ./restore-s3.sh postgres postgres/pg_api_obs_ingestor_20260101_120000.sql.gz
 #   ./restore-s3.sh mongodb mongodb/mongo_data_zoo_20260101_120000.archive.gz
 #   ./restore-s3.sh list                # list available backups in S3
 #
@@ -49,7 +49,7 @@ usage() {
     echo "       $0 list"
     echo ""
     echo "Examples:"
-    echo "  $0 postgres postgres/pg_api_observatory_20260101_120000.sql.gz"
+    echo "  $0 postgres postgres/pg_api_obs_ingestor_20260101_120000.sql.gz"
     echo "  $0 mongodb mongodb/mongo_data_zoo_20260101_120000.archive.gz"
     echo "  $0 list"
     exit 1

@@ -9,4 +9,4 @@ app_dashboard_image: "{{ docker_registry }}/api-observatory/dashboard:latest"
 
 pg_host: "api-observatory-pg.XXXXX.eu-central-1.rds.amazonaws.com"
 pg_port: 5432
-pg_database: api_observatory
+pg_database: api_obs_ingestor

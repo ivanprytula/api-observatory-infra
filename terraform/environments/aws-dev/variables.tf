@@ -47,7 +47,7 @@ variable "pg_admin_password" {
 variable "pg_database_name" {
   description = "PostgreSQL database name"
   type        = string
-  default     = "api_observatory"
+  default     = "api_obs_ingestor"
 }
 
 variable "rds_instance_class" {

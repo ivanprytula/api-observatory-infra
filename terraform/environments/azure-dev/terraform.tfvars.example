@@ -6,4 +6,4 @@ admin_cidr        = "203.0.113.1/32"  # Your public IP (curl ifconfig.me)
 ssh_public_key    = "ssh-rsa AAAA..."
 pg_admin_user     = "pgadmin"
 pg_admin_password = "CHANGE_ME"       # Required — use a strong, unique password
-pg_database_name  = "api_observatory"
+pg_database_name  = "api_obs_ingestor"

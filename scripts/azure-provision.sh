@@ -12,7 +12,7 @@ FALLBACK_LOCATIONS="westeurope northeurope uksouth"
 VM_NAME="api-observatory-vm"
 ADMIN_USER="azureuser"
 PG_SERVER="api-observatory-pg"
-PG_DB="api_observatory"
+PG_DB="api_obs_ingestor"
 PG_ADMIN="pgadmin"
 ACR_NAME="${ACR_NAME:?Set ACR_NAME env var before running}"
 
