@@ -4,6 +4,10 @@ AWS Stage 0 is the primary portfolio direction: immutable ECR images and local P
 on one EC2 Docker Compose host. Encrypted EBS volumes hold runtime data; private S3 holds retained
 backup artifacts. Configuration and workflows exist, but no completed live deployment is claimed.
 
+The rollout is a single-host in-place recreate with a coordinated image set and best-effort
+rollback. It is not rolling, blue/green, canary, or zero-downtime delivery: there is no parallel
+stack or traffic switch, and Compose replaces changed service containers on the existing host.
+
 Stage 0 is private/admin-only: Systems Manager is the administration and verification path. It has
 no public DNS, TLS, load balancer, or inbound application port until a separately approved public
 demo requirement exists.
@@ -58,7 +62,10 @@ MCP remains a local stdio process and is not deployed.
    URLs; it does not need an SSH key or inbound port 22.
 5. Create the required SecureString values outside Terraform and repository/workflow files. Bootstrap
    is deliberately secret-free; it only prepares Docker, protected directories, and helper commands.
-6. Commit a reviewed, non-placeholder `images.lock.json`, then manually deploy that exact desired
+6. Download the app publisher's `release-metadata-<commit-SHA>` artifact and run
+   `just promote-images <artifact-path>`. Review the deterministic `images.lock.json` diff, including
+   its source commit, tree, digests, and optional profiles. Commit that desired state through a PR,
+   then manually deploy it
    state by manually dispatching the [AWS Stage 0 deployment workflow](../../.github/workflows/deploy-aws-stage0.yml).
    The workflow renders runtime files on the host, copies the reviewed Compose assets, pulls only the
    locked digests with the EC2 role, runs migrations, and executes readiness and authenticated smoke
@@ -69,9 +76,10 @@ owns repository variables and least-privilege role responsibilities.
 
 ## Delivery and Verification
 
-The app repository manually publishes CI-checked `tree-<SHA>` images to ECR. Promotion is an infra
-PR that changes `images.lock.json`; the manually dispatched GitHub CD workflow applies that exact
-desired state through Systems Manager. Tag-based automatic promotion remains suspended until a live
+The app repository manually publishes CI-checked `tree-<SHA>` images and machine-readable release
+metadata to ECR/GitHub Actions. Promotion is an infra PR that changes `images.lock.json`; the
+manually dispatched GitHub CD workflow checks out the locked app commit, verifies its tree and image
+digests, then applies that exact desired state through Systems Manager. Tag-based automatic promotion remains suspended until a live
 Stage 0 deploy, rollback, and teardown have been exercised.
 
 The committed all-zero image lock is only a pre-provisioning schema fixture. Infrastructure CI labels
@@ -84,9 +92,10 @@ Configuration or a successful plan alone is not deployment proof.
 
 ## Rollback and Teardown
 
-Rollback selects the previous immutable tree tag and repeats the same health/smoke gates. It is
-unsafe after an incompatible schema contraction; review application and migration compatibility
-together.
+Canonical rollback reverts the image-lock commit and reruns the same desired-state deployment. The
+rollout also attempts to restore the previous deployment environment when readiness fails, but that
+is best-effort only: it does not downgrade either database and cannot make an incompatible schema
+contraction safe. Application migrations must remain backward compatible with both image sets.
 
 Before temporary deployment, identify every billable resource and retention decision. Teardown
 requires a reviewed destroy plan and explicit destructive-action approval. Afterwards verify EC2,

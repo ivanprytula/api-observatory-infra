@@ -18,7 +18,7 @@ maintenance, and transformation, with direct links back to this repository at ea
 terraform/
   environments/
     azure-dev/           Azure cloud (B1s free tier)
-    aws-dev/             AWS cloud (t2.micro free tier)
+    aws-dev/             AWS Stage 0 environment
 ansible/                 Playbooks, inventory (multi-cloud), roles
 kubernetes/              K8s manifests, Helm charts, overlays (cloud-neutral)
 monitoring/              Prometheus, Alertmanager, Grafana (cloud-neutral)
@@ -32,7 +32,8 @@ Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're 
 ## Working with the Repository
 
 The [`Justfile`](Justfile) owns Terraform, Ansible, Kubernetes, Helm, backup/restore, and validation
-command syntax. Start with static validation and a reviewed Terraform plan. Any apply, deployment,
+command syntax. Run `just help-aws-stage0` for the non-mutating operator sequence. Every Terraform
+command requires an explicit `TF_ENV`. Start with static validation and a reviewed plan. Any apply, deployment,
 restore, chaos action, or teardown requires explicit target review and approval.
 
 ## Contract with App Repo
@@ -66,7 +67,7 @@ Install only the row matching the work you will perform.
 
 | Work | Developer-machine dependencies |
 | --- | --- |
-| Application work or local Compose verification | Docker Engine/Desktop + Compose v2, Python 3.14.6, `uv`, `just`, Git, `curl` — see the app [Setup Guide](https://github.com/ivanprytula/api-observatory/blob/main/docs/04-setup/setup-guide.md) |
+| Application work or local Compose verification | Follow the app [Setup Guide](https://github.com/ivanprytula/api-observatory/blob/main/docs/04-setup/setup-guide.md); this repository does not duplicate its versions |
 | Terraform formatting, validation, and plan review | Terraform and TFLint |
 | Ansible playbook development and linting | `pipx`, full Ansible, `ansible-lint`, and collections from `ansible/requirements.yml` |
 | AWS Stage 0 bootstrap/deployment | AWS CLI, `session-manager-plugin`, Terraform, Ansible, `jq`, and S3-capable AWS credentials on the controller |
@@ -86,8 +87,8 @@ The AWS Session Manager plugin is a native AWS package, not a PyPI dependency. I
 local credential store or short-lived federation; never put them in repository files. Pre-commit
 hooks run most remaining checks in isolated environments.
 
-Always select the cloud environment explicitly; this checkout currently defaults the Terraform recipe
-to `aws-dev`. Before AWS initialization, create the versioned, encrypted, private S3 state
+Always select the cloud environment explicitly; Terraform recipes refuse to infer a target. Before
+AWS initialization, create the versioned, encrypted, private S3 state
 bucket. The backend uses S3-native lockfiles; DynamoDB locking is deprecated by Terraform. Then copy
 `terraform/environments/aws-dev/backend.s3.hcl.example` to the ignored
 `backend.s3.hcl` and fill it locally. Then use `TF_ENV=aws-dev just tf init` followed by

@@ -3,8 +3,8 @@
 # Multi-cloud infrastructure management for api-observatory.
 # App repo: github.com/ivanprytula/api-observatory
 #
-# Azure (current):
-#   TF_ENV=azure-sandbox just tf init    # floci-az emulator (default)
+# Azure reference:
+#   TF_ENV=azure-sandbox just tf init    # floci-az emulator
 #   TF_ENV=azure-dev just tf plan        # Azure cloud
 #   just ansible-run provision-azure-vm  # provision Azure VM
 #
@@ -19,22 +19,21 @@
 # ─── TERRAFORM ────────────────────────────────────────────────────────────────
 #
 # Environments:
-#   azure-sandbox  — floci-az emulator (default)
-#   azure-dev      — Azure cloud (B1s free tier)
+#   azure-sandbox  — floci-az emulator
+#   azure-dev      — Azure reference environment
 #   aws-sandbox    — LocalStack emulator
-#   aws-dev        — AWS cloud (t2.micro free tier)
+#   aws-dev        — AWS Stage 0 environment
 #
 # Usage:
-#   just tf init                          # defaults to azure-sandbox
-#   just tf plan
-#   just tf apply
-#   TF_ENV=aws-dev just tf plan           # target AWS dev
-#   just tf fresh                         # init → plan → apply
+#   TF_ENV=aws-dev just tf init
+#   TF_ENV=aws-dev just tf plan
+#   TF_ENV=aws-dev just tf show
+#   TF_ENV=aws-dev just tf apply
 
 tf cmd:
     #!/usr/bin/env bash
     set -euo pipefail
-    ENV="${TF_ENV:-aws-dev}"
+    ENV="${TF_ENV:?Set TF_ENV explicitly, for example TF_ENV=aws-dev}"
     CMD="{{cmd}}"
     DIR="terraform/environments/${ENV}"
     if [ ! -d "$DIR" ]; then
@@ -81,20 +80,15 @@ tf cmd:
                 -auto-approve \
                 -var-file=terraform.tfvars
             ;;
-        fresh)
-            just tf init
-            just tf plan
-            just tf apply
-            ;;
         *)
-            echo "Usage: just tf <init|validate|plan|apply|show|destroy|fresh>"; exit 1
+            echo "Usage: TF_ENV=<environment> just tf <init|validate|plan|show|apply|destroy>"; exit 1
             ;;
     esac
 
 tf-destroy:
     #!/usr/bin/env bash
     set -euo pipefail
-    ENV="${TF_ENV:-azure-sandbox}"
+    ENV="${TF_ENV:?Set TF_ENV explicitly before destroy}"
     EXPECTED="yes-i-really-want-to-destroy-${ENV}"
     read -r -p "DANGER: Type '${EXPECTED}' to destroy ${ENV} infra: " CONFIRM
     if [ "$CONFIRM" != "$EXPECTED" ]; then
@@ -102,6 +96,20 @@ tf-destroy:
         exit 1
     fi
     just tf destroy
+
+help-aws-stage0:
+    @echo "1. Create and configure the private S3 state backend from README.md."
+    @echo "2. TF_ENV=aws-dev just tf init"
+    @echo "3. TF_ENV=aws-dev just tf validate"
+    @echo "4. TF_ENV=aws-dev just tf plan"
+    @echo "5. TF_ENV=aws-dev just tf show"
+    @echo "6. Obtain explicit approval before: TF_ENV=aws-dev just tf apply"
+    @echo "7. Bootstrap through the explicit SSM Ansible command in docs/deployment/deployment-guide.md."
+    @echo "8. Add runtime SecureStrings outside Git and review a real images.lock.json promotion."
+    @echo "9. Dispatch deployment only after the aws-dev environment approval."
+
+promote-images metadata-file:
+    uv run python scripts/promote_stage0_images.py "{{metadata-file}}"
 
 # ─── ANSIBLE ──────────────────────────────────────────────────────────────────
 #

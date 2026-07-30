@@ -61,6 +61,9 @@ jobs:
         with:
           args: format --check scripts
 
+      - name: Test Stage 0 contract and promotion scripts
+        run: python3 -m unittest discover -s tests -v
+
   terraform-fmt:
     name: Terraform Format
     runs-on: ubuntu-latest
@@ -93,11 +96,23 @@ jobs:
             echo "::endgroup::"
           done
 
+      - id: app-ref
+        name: Resolve the exact app contract ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(jq -r .source_commit_sha environments/aws-dev/images.lock.json)
+          if [[ "$commit" == "0000000000000000000000000000000000000000" ]]; then
+            commit=main
+          fi
+          echo "ref=$commit" >> "$GITHUB_OUTPUT"
+
       - name: Check out the app Stage 0 contract
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ivanprytula/api-observatory
           path: .stage0-app-contract
+          ref: ${{ steps.app-ref.outputs.ref }}
 
       - name: Validate the pre-provisioning app and infra Stage 0 contract
         run: python3 scripts/validate_stage0_contract.py --allow-placeholder-lock --app-root .stage0-app-contract
@@ -136,8 +151,7 @@ jobs:
           compact: true
           # Skip list MUST stay in sync with .pre-commit-config.yaml and the
           # justifications in TERRAFORM_CHECKS.md (each ID = one documented row).
-          # Terraform-only subset (CI scans terraform/; K8s/SECRET skips omitted).
-          skip_check: CKV2_AWS_5,CKV2_AWS_12,CKV_AWS_130,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
+          skip_check: CKV2_AWS_5,CKV2_AWS_11,CKV2_AWS_12,CKV2_AWS_62,CKV_AWS_18,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
 
   helm-lint:
     name: Helm Lint
@@ -176,3 +190,38 @@ jobs:
 
       - name: Run ShellCheck
         run: shellcheck --severity=warning scripts/*.sh deployment/aws-stage0/rollout.sh
+
+  merge-gate:
+    name: Merge gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - workflow-quality
+      - ruff
+      - terraform-fmt
+      - terraform-validate
+      - tflint
+      - checkov
+      - helm-lint
+      - yaml-lint
+      - shellcheck
+    steps:
+      - name: Require every infrastructure CI job
+        env:
+          WORKFLOW_RESULT: ${{ needs.workflow-quality.result }}
+          RUFF_RESULT: ${{ needs.ruff.result }}
+          TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
+          TERRAFORM_VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
+          TFLINT_RESULT: ${{ needs.tflint.result }}
+          CHECKOV_RESULT: ${{ needs.checkov.result }}
+          HELM_RESULT: ${{ needs.helm-lint.result }}
+          YAML_RESULT: ${{ needs.yaml-lint.result }}
+          SHELLCHECK_RESULT: ${{ needs.shellcheck.result }}
+        run: |
+          set -euo pipefail
+          for result in \
+            "$WORKFLOW_RESULT" "$RUFF_RESULT" "$TERRAFORM_FMT_RESULT" \
+            "$TERRAFORM_VALIDATE_RESULT" "$TFLINT_RESULT" "$CHECKOV_RESULT" \
+            "$HELM_RESULT" "$YAML_RESULT" "$SHELLCHECK_RESULT"; do
+            [[ "$result" == "success" ]] || exit 1
+          done

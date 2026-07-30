@@ -514,6 +514,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_ansible_transfer" {
 
     filter {}
 
+    abort_incomplete_multipart_upload { days_after_initiation = 1 }
     expiration { days = 1 }
   }
 }
@@ -540,6 +541,15 @@ resource "aws_s3_bucket_versioning" "stage0_backups" {
 
 resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
   bucket = aws_s3_bucket.stage0_backups.id
+
+  rule {
+    id     = "abort-incomplete-stage0-backup-uploads"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
 
   rule {
     id     = "retain-stage0-postgres-backups"

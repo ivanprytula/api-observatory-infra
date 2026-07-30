@@ -11,7 +11,7 @@ variable "project" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type (t2.micro = free tier eligible)"
+  description = "EC2 instance type for the temporary Stage 0 host"
   type        = string
   default     = "t2.micro"
 }

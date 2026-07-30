@@ -22,11 +22,17 @@ Pre-commit configuration and the [`Justfile`](../../Justfile) own local command 
 workflow proves static validation only; it does not prove that Terraform was applied, a workload was
 deployed, or recovery was exercised.
 
+Short-lived task branches target `main`. Branch protection should require only the stable
+`CI / Merge gate`; that job fails unless every internal validation job succeeds. Internal job names
+and structure may therefore evolve without changing the contributor or promotion contract.
+
 ## Cross-Repository Delivery
 
 The application repository owns application CI, image smoke tests, and manual immutable-image
 publication. Its publisher OIDC role can push and inspect ECR images only. This repository owns
 infrastructure CI, the reviewed `images.lock.json` desired state, and protected manual deployment.
+The lock binds the published app commit and tree to exact image digests; validation checks out that
+commit rather than whichever app branch happens to be the default.
 Its deployer OIDC role can inspect ECR digests and send commands only to the approved EC2 target;
 the EC2 instance role separately pulls images from ECR.
 

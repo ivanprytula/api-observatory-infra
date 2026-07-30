@@ -6,19 +6,28 @@ readonly DEPLOYMENT_ENV_FILE="${DEPLOYMENT_ENV_FILE:-.runtime/deployment.env}"
 readonly PREVIOUS_ENV_FILE="${DEPLOYMENT_ENV_FILE}.previous"
 previous_ingestor=""
 previous_dashboard=""
+previous_inference=""
 rollback_needed=true
 profile_args=()
+enabled_profiles=""
 
 configure_profiles() {
+  local env_file="$1"
   local profile
-  [[ -n "${ENABLED_PROFILES:-}" ]] || return
-  IFS=',' read -r -a profiles <<< "${ENABLED_PROFILES}"
+  profile_args=()
+  enabled_profiles="$(awk -F= '$1 == "ENABLED_PROFILES" {print substr($0, index($0, "=") + 1)}' "${env_file}")"
+  [[ "${enabled_profiles}" =~ ^(inference|cache|broker|monitoring)?(,(inference|cache|broker|monitoring))*$ ]] || {
+    error "Invalid ENABLED_PROFILES value."
+    return 1
+  }
+  [[ -n "${enabled_profiles}" ]] || return
+  IFS=',' read -r -a profiles <<< "${enabled_profiles}"
   for profile in "${profiles[@]}"; do
     case "${profile}" in inference|cache|broker|monitoring) profile_args+=(--profile "${profile}") ;; *) error "Unsupported profile: ${profile}"; return 1 ;; esac
   done
 }
 profile_enabled() {
-  case ",${ENABLED_PROFILES:-}," in
+  case ",${enabled_profiles}," in
     *,"$1",*) return 0 ;;
     *) return 1 ;;
   esac
@@ -29,12 +38,14 @@ current_image() { local id; id="$(compose ps -q "$1")"; [[ -z "$id" ]] || docker
 
 rollback() {
   [[ "$rollback_needed" == true ]] || return
-  if [[ -z "$previous_ingestor" || -z "$previous_dashboard" ]]; then
+  if [[ -z "$previous_ingestor" || -z "$previous_dashboard" || ! -r "$PREVIOUS_ENV_FILE" ]]; then
     compose down --remove-orphans || true
     rm -f "${DEPLOYMENT_ENV_FILE}"
     return
   fi
+  error "Restoring previous images: ingestor=${previous_ingestor}, dashboard=${previous_dashboard}, inference=${previous_inference:-not-running}"
   mv "${PREVIOUS_ENV_FILE}" "${DEPLOYMENT_ENV_FILE}"
+  configure_profiles "${DEPLOYMENT_ENV_FILE}"
   compose up -d
 }
 
@@ -46,9 +57,10 @@ wait_for() {
 
 main() {
   [[ -r "$DEPLOYMENT_ENV_FILE" ]] || { error "Missing desired-state deployment env."; exit 1; }
-  configure_profiles
+  configure_profiles "${DEPLOYMENT_ENV_FILE}"
   previous_ingestor="$(current_image ingestor)"
   previous_dashboard="$(current_image dashboard)"
+  previous_inference="$(current_image inference)"
   compose pull
   compose up -d --wait ingestor-db
   compose run --rm --no-deps ingestor alembic upgrade head

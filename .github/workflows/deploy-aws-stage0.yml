@@ -21,8 +21,22 @@ jobs:
     environment: aws-dev
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: app-ref
+        name: Resolve locked application commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit_sha=$(jq -r .source_commit_sha environments/aws-dev/images.lock.json)
+          [[ "$source_commit_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$source_commit_sha" != "0000000000000000000000000000000000000000" ]]
+          echo "ref=$source_commit_sha" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: {repository: ivanprytula/api-observatory, path: .app-release}
+        with:
+          repository: ivanprytula/api-observatory
+          path: .app-release
+          ref: ${{ steps.app-ref.outputs.ref }}
       - run: python3 scripts/validate_stage0_contract.py --app-root .app-release
       - uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
         with:

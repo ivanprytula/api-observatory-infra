@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,6 +19,22 @@ SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 PLACEHOLDER_SHA = "0" * 40
 PLACEHOLDER_DIGEST = f"sha256:{'0' * 64}"
+EXPECTED_CONTRACT = {
+    "ingestor": (8000, "/health", "/readyz"),
+    "inference": (8001, "/health", "/readyz"),
+    "dashboard": (8501, "/_stcore/health", "/_stcore/health"),
+}
+
+
+def git_revision(app_root: Path, revision: str) -> str:
+    """Resolve a Git revision in the checked-out application repository."""
+    result = subprocess.run(
+        ["git", "-C", str(app_root), "rev-parse", revision],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 
 def validate(app_root: Path, *, allow_placeholder_lock: bool = False) -> list[str]:
@@ -31,17 +48,45 @@ def validate(app_root: Path, *, allow_placeholder_lock: bool = False) -> list[st
     terraform = TERRAFORM.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
     rollout = ROLLOUT.read_text(encoding="utf-8")
-    services = {service["name"] for service in manifest.get("services", [])}
-    expected = {"ingestor", "inference", "dashboard"}
+    manifest_services = manifest.get("services", [])
+    services = {service["name"] for service in manifest_services}
+    expected = set(EXPECTED_CONTRACT)
     if services != expected:
         errors.append("app release manifest service set is invalid")
+    for service in manifest_services:
+        name = service.get("name")
+        if name not in EXPECTED_CONTRACT:
+            continue
+        port, health_path, readiness_path = EXPECTED_CONTRACT[name]
+        if (
+            service.get("port"),
+            service.get("health_path"),
+            service.get("readiness_path"),
+        ) != (port, health_path, readiness_path):
+            errors.append(f"{name}: app port or health contract is invalid")
+    source_commit_sha = lock.get("source_commit_sha", "")
     source_tree_sha = lock.get("source_tree_sha", "")
-    if lock.get("schema_version") != 1 or not SHA.fullmatch(source_tree_sha):
-        errors.append("image lock must contain schema version 1 and a full tree SHA")
-    elif source_tree_sha == PLACEHOLDER_SHA and not allow_placeholder_lock:
-        errors.append(
-            "image lock contains a placeholder tree SHA; promote published images before deployment"
-        )
+    if lock.get("schema_version") != 1:
+        errors.append("image lock schema version must be 1")
+    for field, value in (
+        ("source_commit_sha", source_commit_sha),
+        ("source_tree_sha", source_tree_sha),
+    ):
+        if not SHA.fullmatch(value):
+            errors.append(f"image lock must contain a full {field}")
+        elif value == PLACEHOLDER_SHA and not allow_placeholder_lock:
+            errors.append(f"image lock contains a placeholder {field}")
+    if source_commit_sha != PLACEHOLDER_SHA and source_tree_sha != PLACEHOLDER_SHA:
+        try:
+            checked_out_commit = git_revision(app_root, "HEAD")
+            checked_out_tree = git_revision(app_root, "HEAD^{tree}")
+        except subprocess.CalledProcessError:
+            errors.append("app root must be the exact checked-out Git repository")
+        else:
+            if checked_out_commit != source_commit_sha:
+                errors.append("checked-out app commit does not match the image lock")
+            if checked_out_tree != source_tree_sha:
+                errors.append("checked-out app tree does not match the image lock")
     if set(lock.get("images", [])) != expected:
         errors.append("image lock must select every deployable service")
     for name in expected:
@@ -55,10 +100,24 @@ def validate(app_root: Path, *, allow_placeholder_lock: bool = False) -> list[st
             errors.append(f"{name}: image lock contains a placeholder digest")
         if f"${{{name.upper()}_IMAGE:" not in compose:
             errors.append(f"{name}: Compose does not consume desired image state")
+        port, _health_path, readiness_path = EXPECTED_CONTRACT[name]
+        if f"127.0.0.1:{port}:{port}" not in compose:
+            errors.append(
+                f"{name}: Compose loopback port does not match the app contract"
+            )
+        if readiness_path not in compose:
+            errors.append(
+                f"{name}: Compose readiness path does not match the app contract"
+            )
     for profile in lock.get("enabled_profiles", []):
         if profile not in {"inference", "cache", "broker", "monitoring"}:
             errors.append(f"unsupported optional profile: {profile}")
-    for marker in ("enabled_profiles", "ENABLED_PROFILES", "concurrency:"):
+    for marker in (
+        "source_commit_sha",
+        "enabled_profiles",
+        "ENABLED_PROFILES",
+        "concurrency:",
+    ):
         if marker not in workflow:
             errors.append(f"deployment workflow is missing: {marker}")
     for marker in ("configure_profiles", "profile_enabled inference", "compose up -d"):
