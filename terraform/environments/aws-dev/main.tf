@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.10"
 
   required_providers {
     aws = {
@@ -9,6 +9,7 @@ terraform {
   }
 
   backend "s3" {}
+
 }
 
 provider "aws" {
@@ -77,36 +78,24 @@ resource "aws_security_group" "app" {
   description = "Security group for the application EC2 instance"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
-
-  ingress {
-    # Restrict to admin CIDR until DNS + HTTPS are configured.
-    # When you need to allow a specific user, change this CIDR to their IP (e.g. "X.X.X.X/32").
-    # Once DNS + HTTPS are in place, change to "0.0.0.0/0" for general access
-    # (and add a 443 ingress rule for HTTPS).
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
-
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
+  egress {
+    description = "DNS TCP"
+    from_port   = 53
+    to_port     = 53
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    description = "Outbound HTTP"
+    description = "DNS UDP"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Outbound HTTP for Ubuntu package bootstrap"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -114,17 +103,9 @@ resource "aws_security_group" "app" {
   }
 
   egress {
-    description = "Outbound HTTPS"
+    description = "Outbound HTTPS for AWS APIs and image pulls"
     from_port   = 443
     to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Outbound PostgreSQL"
-    from_port   = 5432
-    to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -152,17 +133,12 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-resource "aws_key_pair" "deploy" {
-  key_name   = "${var.project}-key"
-  public_key = var.ssh_public_key
-}
-
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.app.id]
-  key_name               = aws_key_pair.deploy.key_name
+  iam_instance_profile   = aws_iam_instance_profile.stage0.name
   monitoring             = true
   ebs_optimized          = true
 
@@ -173,9 +149,10 @@ resource "aws_instance" "app" {
   }
 
   root_block_device {
-    volume_size = 30
-    volume_type = "gp3"
-    encrypted   = true
+    volume_size           = var.root_volume_size
+    volume_type           = "gp3"
+    encrypted             = true
+    delete_on_termination = true
   }
 
   tags = {
@@ -257,10 +234,10 @@ resource "aws_flow_log" "main" {
 }
 
 # ─── KMS Key ──────────────────────────────────────────────────────────────────
-# Used for CloudWatch Log Group encryption and RDS Performance Insights.
+# Used for CloudWatch Log Group encryption.
 
 resource "aws_kms_key" "main" {
-  description             = "KMS key for CloudWatch Logs and RDS Performance Insights"
+  description             = "KMS key for CloudWatch Logs"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
@@ -291,21 +268,6 @@ resource "aws_kms_key" "main" {
         ]
         Resource = "*"
       },
-      {
-        Sid    = "Allow RDS Performance Insights to use the key"
-        Effect = "Allow"
-        Principal = {
-          Service = "pi.${var.aws_region}.amazonaws.com"
-        }
-        Action = [
-          "kms:Encrypt*",
-          "kms:Decrypt*",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:Describe*"
-        ]
-        Resource = "*"
-      }
     ]
   })
 
@@ -319,109 +281,292 @@ resource "aws_kms_alias" "main" {
   target_key_id = aws_kms_key.main.id
 }
 
-# ─── RDS Enhanced Monitoring Role ──────────────────────────────────────────────
+# ─── Stage 0 delivery identity and registry ─────────────────────────────────
 
-resource "aws_iam_role" "rds_enhanced_monitoring" {
-  name = "${var.project}-rds-monitoring-role"
+locals {
+  stage0_services = toset(["ingestor", "inference", "dashboard"])
+  github_oidc_provider_arn = coalesce(
+    var.github_oidc_provider_arn,
+    try(aws_iam_openid_connect_provider.github_actions[0].arn, null),
+  )
+}
 
+resource "aws_ecr_repository" "stage0" {
+  for_each = local.stage0_services
+
+  name                 = "api-observatory/${each.value}"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "stage0" {
+  for_each = aws_ecr_repository.stage0
+
+  repository = each.value.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Retain the latest 20 immutable Stage 0 candidate images."
+      selection = {
+        tagStatus     = "tagged"
+        tagPrefixList = ["tree-"]
+        countType     = "imageCountMoreThan"
+        countNumber   = 20
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
+
+resource "aws_iam_openid_connect_provider" "github_actions" {
+  count = var.github_oidc_provider_arn == null ? 1 : 0
+
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+data "aws_iam_policy_document" "github_actions_image_publish_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.github_oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.app_github_repository}:environment:aws-image-publish"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_image_publish" {
+  name               = "${var.project}-github-actions-image-publish"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_image_publish_assume.json
+}
+
+data "aws_iam_policy_document" "github_actions_image_publish" {
+  statement {
+    sid       = "PushImmutableImages"
+    effect    = "Allow"
+    actions   = ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:DescribeImages", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart"]
+    resources = [for repository in aws_ecr_repository.stage0 : repository.arn]
+  }
+
+  statement {
+    sid       = "GetEcrAuthorizationToken"
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+}
+
+resource "aws_iam_role_policy" "github_actions_image_publish" {
+  name   = "${var.project}-github-actions-image-publish"
+  role   = aws_iam_role.github_actions_image_publish.id
+  policy = data.aws_iam_policy_document.github_actions_image_publish.json
+}
+
+data "aws_iam_policy_document" "github_actions_infra_deploy_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [local.github_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.infra_github_repository}:environment:aws-dev"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_infra_deploy" {
+  name               = "${var.project}-github-actions-infra-deploy"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_infra_deploy_assume.json
+}
+
+data "aws_iam_policy_document" "github_actions_infra_deploy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:DescribeImages"]
+    resources = [for repository in aws_ecr_repository.stage0 : repository.arn]
+  }
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.app.id}",
+    ]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetCommandInvocation"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_infra_deploy" {
+  name   = "${var.project}-github-actions-infra-deploy"
+  role   = aws_iam_role.github_actions_infra_deploy.id
+  policy = data.aws_iam_policy_document.github_actions_infra_deploy.json
+}
+
+resource "aws_iam_role" "stage0_instance" {
+  name = "${var.project}-stage0-instance"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "monitoring.rds.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
   })
+}
 
-  tags = {
-    Project = var.project
+resource "aws_iam_role_policy_attachment" "stage0_ssm" {
+  role       = aws_iam_role.stage0_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "stage0_ecr_pull" {
+  role       = aws_iam_role.stage0_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+data "aws_iam_policy_document" "stage0_runtime_parameters" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParameters", "ssm:GetParametersByPath"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.stage0_runtime_parameter_path}/*"]
   }
 }
 
-resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
-  role       = aws_iam_role.rds_enhanced_monitoring.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+resource "aws_iam_role_policy" "stage0_runtime_parameters" {
+  name   = "${var.project}-stage0-runtime-parameters"
+  role   = aws_iam_role.stage0_instance.id
+  policy = data.aws_iam_policy_document.stage0_runtime_parameters.json
 }
 
-# ─── RDS PostgreSQL ────────────────────────────────────────────────────────────
+resource "aws_iam_instance_profile" "stage0" {
+  name = "${var.project}-stage0"
+  role = aws_iam_role.stage0_instance.name
+}
 
-resource "aws_db_subnet_group" "main" {
-  name       = "${var.project}-db-subnet"
-  subnet_ids = [aws_subnet.public.id, aws_subnet.public_b.id]
+resource "aws_s3_bucket" "stage0_backups" {
+  bucket_prefix = "${var.project}-stage0-backups-"
+}
 
-  tags = {
-    Project = var.project
+# The Ansible SSM connection plugin transfers its module files through this
+# bucket. It is separate from retained backups and intentionally unversioned so
+# an interrupted controller run cannot retain module payloads indefinitely.
+resource "aws_s3_bucket" "stage0_ansible_transfer" {
+  bucket_prefix = "${var.project}-stage0-ansible-"
+}
+
+resource "aws_s3_bucket_public_access_block" "stage0_ansible_transfer" {
+  bucket                  = aws_s3_bucket.stage0_ansible_transfer.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "stage0_ansible_transfer" {
+  bucket = aws_s3_bucket.stage0_ansible_transfer.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
 
-resource "aws_subnet" "public_b" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "${var.aws_region}b"
-  map_public_ip_on_launch = true
+resource "aws_s3_bucket_lifecycle_configuration" "stage0_ansible_transfer" {
+  bucket = aws_s3_bucket.stage0_ansible_transfer.id
 
-  tags = {
-    Name    = "${var.project}-public-subnet-b"
-    Project = var.project
+  rule {
+    id     = "expire-ansible-ssm-transfer-files"
+    status = "Enabled"
+
+    filter {}
+
+    expiration { days = 1 }
   }
 }
 
-resource "aws_route_table_association" "public_b" {
-  subnet_id      = aws_subnet.public_b.id
-  route_table_id = aws_route_table.public.id
+resource "aws_s3_bucket_public_access_block" "stage0_backups" {
+  bucket                  = aws_s3_bucket.stage0_backups.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
-resource "aws_security_group" "rds" {
-  name_prefix = "${var.project}-rds-sg-"
-  description = "Security group for RDS PostgreSQL"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "PostgreSQL from app"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  tags = {
-    Name    = "${var.project}-rds-sg"
-    Project = var.project
+resource "aws_s3_bucket_server_side_encryption_configuration" "stage0_backups" {
+  bucket = aws_s3_bucket.stage0_backups.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
 
-resource "aws_db_instance" "main" {
-  identifier                            = "${var.project}-pg"
-  engine                                = "postgres"
-  engine_version                        = "16"
-  instance_class                        = var.rds_instance_class
-  allocated_storage                     = 20
-  storage_type                          = "gp3"
-  db_name                               = var.pg_database_name
-  username                              = var.pg_admin_user
-  password                              = var.pg_admin_password
-  db_subnet_group_name                  = aws_db_subnet_group.main.name
-  vpc_security_group_ids                = [aws_security_group.rds.id]
-  publicly_accessible                   = false
-  auto_minor_version_upgrade            = true
-  copy_tags_to_snapshot                 = true
-  iam_database_authentication_enabled   = true
-  performance_insights_enabled          = true
-  performance_insights_retention_period = 7
-  performance_insights_kms_key_id       = aws_kms_key.main.arn
-  monitoring_role_arn                   = aws_iam_role.rds_enhanced_monitoring.arn
-  monitoring_interval                   = 60
-  storage_encrypted                     = true
-  deletion_protection                   = true
-  skip_final_snapshot                   = false
-  final_snapshot_identifier             = "${var.project}-pg-final-snapshot"
-  enabled_cloudwatch_logs_exports       = ["postgresql"]
+resource "aws_s3_bucket_versioning" "stage0_backups" {
+  bucket = aws_s3_bucket.stage0_backups.id
+  versioning_configuration { status = "Enabled" }
+}
 
-  tags = {
-    Project = var.project
+resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
+  bucket = aws_s3_bucket.stage0_backups.id
+
+  rule {
+    id     = "retain-stage0-postgres-backups"
+    status = "Enabled"
+
+    filter { prefix = "postgres/" }
+
+    expiration { days = 30 }
+    noncurrent_version_expiration { noncurrent_days = 7 }
   }
+}
+
+data "aws_iam_policy_document" "stage0_backups" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["${aws_s3_bucket.stage0_backups.arn}/postgres/*"]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.stage0_backups.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "stage0_backups" {
+  name   = "${var.project}-stage0-backups"
+  role   = aws_iam_role.stage0_instance.id
+  policy = data.aws_iam_policy_document.stage0_backups.json
 }

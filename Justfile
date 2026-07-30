@@ -11,7 +11,6 @@
 # AWS:
 #   TF_ENV=aws-sandbox just tf init      # LocalStack emulator
 #   TF_ENV=aws-dev just tf plan          # AWS cloud
-#   just ansible-run provision-aws-ec2   # provision EC2 instance
 #
 # Cloud-neutral:
 #   just helm-lint                       # lint all Helm charts
@@ -35,7 +34,7 @@
 tf cmd:
     #!/usr/bin/env bash
     set -euo pipefail
-    ENV="${TF_ENV:-azure-sandbox}"
+    ENV="${TF_ENV:-aws-dev}"
     CMD="{{cmd}}"
     DIR="terraform/environments/${ENV}"
     if [ ! -d "$DIR" ]; then
@@ -47,12 +46,19 @@ tf cmd:
 
     case "$CMD" in
         init)
-            BACKEND_CFG=$(ls backend.*.hcl 2>/dev/null | head -1)
-            if [ -n "${BACKEND_CFG:-}" ]; then
-                terraform init -reconfigure -upgrade -backend-config="$BACKEND_CFG"
-            else
-                terraform init -reconfigure -upgrade
+            shopt -s nullglob
+            BACKEND_CONFIGS=(backend.*.hcl)
+            if [ "${#BACKEND_CONFIGS[@]}" -eq 0 ]; then
+                echo "FAIL: Missing backend configuration for ${ENV}." >&2
+                echo "  Copy backend.s3.hcl.example to backend.s3.hcl, fill it locally," >&2
+                echo "  and create the named versioned S3 state bucket first." >&2
+                exit 1
             fi
+            if [ "${#BACKEND_CONFIGS[@]}" -gt 1 ]; then
+                echo "FAIL: Multiple backend configuration files found for ${ENV}." >&2
+                exit 1
+            fi
+            terraform init -reconfigure -upgrade -backend-config="${BACKEND_CONFIGS[0]}"
             ;;
         validate)
             terraform validate
@@ -102,17 +108,17 @@ tf-destroy:
 # Usage:
 #   just ansible-run sandbox-host         # run a playbook
 #   just ansible-run provision-azure-vm   # provision Azure VM
-#   just ansible-run provision-aws-ec2    # provision AWS EC2
 #   just ansible-lint                     # lint all playbooks
 
 ansible-run playbook:
     #!/usr/bin/env bash
     set -euo pipefail
-    PLAYBOOK="ansible/playbooks/{{playbook}}.yml"
+    cd ansible
+    PLAYBOOK="playbooks/{{playbook}}.yml"
     if [ ! -f "$PLAYBOOK" ]; then
         echo "FAIL: Playbook not found: ${PLAYBOOK}" >&2
         echo "  Available:" >&2
-        ls ansible/playbooks/*.yml | xargs -I{} basename {} .yml | sed 's/^/    /' >&2
+        ls playbooks/*.yml | xargs -I{} basename {} .yml | sed 's/^/    /' >&2
         exit 1
     fi
     ansible-playbook "$PLAYBOOK"
@@ -150,8 +156,6 @@ k3d-down:
 azure-provision:
     bash scripts/azure-provision.sh
 
-aws-provision:
-    bash scripts/aws-provision.sh
 
 # Backup (cloud-neutral local + cloud-specific upload)
 backup:

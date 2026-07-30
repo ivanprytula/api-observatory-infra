@@ -5,14 +5,12 @@ This document explains which Checkov security checks are skipped in `.pre-commit
 ## Skipped Checks (MVP Free Tier Constraints + Architecture)
 
 | Check ID | Rule | MVP Justification | Fix Timeline |
-|----------|------|-------------------|--------------|
+| ---------- | ------ | ------------------- | -------------- |
 | CKV2_AWS_12 | Default SG restricts all traffic | Removed explicit default_security_group resource; AWS manages implicitly (deny-all by default) | N/A (implicit) |
 | CKV2_AWS_5 | SGs attached to resources | Sandbox app-sg not used in dev (only in sandbox TF state); no resources using it yet | Post-MVP (when scaling) |
-| CKV2_AWS_41 | IAM role attached to EC2 | MVP uses SSH key-pair auth; IAM role for SSM/monitoring deferred | Post-MVP (SSM setup) |
-| CKV_AWS_130 | Disable public IP auto-assign | Public subnets needed for NAT/ingress; mitigated by restrictive SGs | Post-MVP (private-only) |
-| CKV_AWS_157 | Enable Multi-AZ for RDS | Free tier constraint (750 hrs/mo) — single-AZ only; ok for dev | Post-MVP (HA) |
-| CKV2_AWS_11 | Enable VPC Flow Logs | CloudWatch cost (~$0.50/GB); defer for MVP | Post-MVP (monitoring) |
-| CKV2_AWS_30 | Enable RDS Query Logging | CloudWatch cost; defer for MVP | Post-MVP (audit) |
+| CKV2_AWS_41 | IAM role attached to EC2 | Obsolete skip: Stage 0 now attaches an EC2 SSM/ECR/Parameter Store role; remove this skip when Checkov confirms it | Next IaC validation change |
+| CKV_AWS_130 | Disable public IP auto-assign | Stage 0 currently uses a public subnet for low-cost outbound access, but has no inbound rules and is operated through SSM | Move to private subnets/VPC endpoints before public or shared use |
+| CKV2_AWS_11 | Enable VPC Flow Logs | Obsolete skip: `aws_flow_log.main` is configured; remove this skip when Checkov confirms it | Next IaC validation change |
 | CKV_AZURE_50 | No VM Extensions | Needed for monitoring agents in dev; mitigated by NSG rules | Post-MVP (managed) |
 | CKV_AZURE_43 | Storage naming convention | Current names valid; low-risk | N/A |
 | CKV_AZURE_119 | NIC without public IP | Need public IP for SSH access; restricted by NSG | Post-MVP (Bastion) |
@@ -53,7 +51,7 @@ When migrating to K8s (post-MVP), re-enable and document as architectural decisi
 ## Tracked Decisions (not Checkov skips — deliberate choices with a revisit trigger)
 
 | Decision | Current choice | Rationale | Revisit when |
-|----------|---------------|-----------|--------------|
+| ---------- | --------------- | ----------- | -------------- |
 | Provider lockfile (`.terraform.lock.hcl`) | **Gitignored** (`.gitignore:6`) — not committed | Single-maintainer MVP: no lock-diff noise in PRs, CI re-resolves latest-matching on each `init -backend=false`. Trade-off: **not reproducible** — two applies days apart may use different provider patch versions, weakening the baseline's "pinned provider versions" guarantee. | **Stage 3** (K8s / multi-machine / production `apply`). Commit the lock (Terraform's official recommendation) for reproducible, auditable builds and proper Dependabot lock bumps. See [evolution-plan.md](docs/architecture/evolution-plan.md). |
 | Branch strategy | **Single-branch (`main` only)** | MVP: one maintainer, four low-risk environments (dev/sandbox × AWS/Azure). All code changes flow through `main` → all envs via `.tfvars` isolation. Risk: a bug in sandbox config could affect dev if `.tfvars` separation is not carefully maintained. No need for environment-branches yet; coordination overhead would exceed benefit. | **Stage 2** (multi-service, concurrent changes to different environments, or a second maintainer). If you see merge-coordination friction or want an audit trail (deploy-history = git-history), switch to environment-branches: `prod/aws`, `prod/azure`, optional `staging/*`. Branches would be rebase-only from `main` (fast-forward only), protecting prod from accidental config drift. |
 

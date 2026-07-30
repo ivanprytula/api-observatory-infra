@@ -13,15 +13,63 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  workflow-quality:
+    name: Workflow and Secret Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Lint GitHub Actions workflows
+        uses: rhysd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12
+
+      - name: Reject mutable GitHub Action references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t workflow_files < <(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
+          mutable_refs=$(grep -nE 'uses:\s*[^#]+@(v[0-9]+|latest|main|master|develop)\b' "${workflow_files[@]}" || true)
+          mutable_docker_refs=$(grep -nE 'uses:\s*docker://' "${workflow_files[@]}" | grep -v '@sha256:' || true)
+          if [[ -n "${mutable_refs}" || -n "${mutable_docker_refs}" ]]; then
+            echo "Mutable action reference detected."
+            echo "${mutable_refs}"
+            echo "${mutable_docker_refs}"
+            exit 1
+          fi
+
+      - name: Detect committed secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_VERSION: "8.30.0"
+
+  ruff:
+    name: Python Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Lint Python scripts
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3.6.1
+        with:
+          args: check scripts
+
+      - name: Check Python script formatting
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3.6.1
+        with:
+          args: format --check scripts
+
   terraform-fmt:
     name: Terraform Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
-          terraform_version: "~> 1.9"
+          terraform_version: "~> 1.10"
 
       - name: Terraform fmt
         run: terraform fmt -check -recursive terraform/
@@ -30,11 +78,11 @@ jobs:
     name: Terraform Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
-          terraform_version: "~> 1.9"
+          terraform_version: "~> 1.10"
 
       - name: Validate all environments
         run: |
@@ -45,15 +93,24 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Check out the app Stage 0 contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ivanprytula/api-observatory
+          path: .stage0-app-contract
+
+      - name: Validate the pre-provisioning app and infra Stage 0 contract
+        run: python3 scripts/validate_stage0_contract.py --allow-placeholder-lock --app-root .stage0-app-contract
+
   tflint:
     name: TFLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: terraform-linters/setup-tflint@v6
+      - uses: terraform-linters/setup-tflint@115085cc23c5f5eeebad58ba418ec14e88c7a431 # v6.0.0
         with:
-          tflint_version: latest
+          tflint_version: v0.63.1
 
       - name: Init TFLint plugins
         run: tflint --init --config .tflint.hcl
@@ -70,9 +127,9 @@ jobs:
     name: Checkov Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: bridgecrewio/checkov-action@v12
+      - uses: bridgecrewio/checkov-action@7b972723c44fb3d256283fac96fae5d7c1894bb7 # v12
         with:
           directory: terraform/
           quiet: true
@@ -80,15 +137,15 @@ jobs:
           # Skip list MUST stay in sync with .pre-commit-config.yaml and the
           # justifications in TERRAFORM_CHECKS.md (each ID = one documented row).
           # Terraform-only subset (CI scans terraform/; K8s/SECRET skips omitted).
-          skip_check: CKV2_AWS_5,CKV2_AWS_11,CKV2_AWS_12,CKV2_AWS_30,CKV2_AWS_41,CKV_AWS_130,CKV_AWS_157,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
+          skip_check: CKV2_AWS_5,CKV2_AWS_12,CKV_AWS_130,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
 
   helm-lint:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: "v3.17.0"
 
@@ -104,9 +161,9 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - run: pip install yamllint
+      - run: python3 -m pip install --disable-pip-version-check yamllint==1.38.0
 
       - name: Run yamllint
         run: yamllint -c .yamllint.yml .
@@ -115,7 +172,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run ShellCheck
-        run: shellcheck --severity=warning scripts/*.sh
+        run: shellcheck --severity=warning scripts/*.sh deployment/aws-stage0/rollout.sh

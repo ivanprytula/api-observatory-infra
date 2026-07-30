@@ -1,0 +1,84 @@
+services:
+  ingestor-db:
+    image: pgvector/pgvector:pg17-trixie
+    env_file: .runtime/ingestor-db.env
+    environment: {POSTGRES_DB: api_obs_ingestor, POSTGRES_USER: postgres}
+    volumes: [ingestor_postgres_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  ingestor:
+    image: "${INGESTOR_IMAGE:?Set an immutable ingestor image}"
+    env_file: .runtime/ingestor.env
+    environment:
+      INFERENCE_URL: http://inference:8001
+      SERVICE_VERSION: "${SERVICE_VERSION:?Set tree identity}"
+    depends_on: {ingestor-db: {condition: service_healthy}}
+    ports: [127.0.0.1:8000:8000]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  dashboard:
+    image: "${DASHBOARD_IMAGE:?Set an immutable dashboard image}"
+    env_file: .runtime/dashboard.env
+    environment:
+      INGESTOR_URL: http://ingestor:8000
+      INFERENCE_URL: http://inference:8001
+      SERVICE_VERSION: "${SERVICE_VERSION:?Set tree identity}"
+    depends_on: {ingestor: {condition: service_healthy}}
+    ports: [127.0.0.1:8501:8501]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  inference-db:
+    profiles: [inference]
+    image: pgvector/pgvector:pg17-trixie
+    env_file: .runtime/inference-db.env
+    environment: {POSTGRES_DB: api_obs_inference, POSTGRES_USER: postgres}
+    volumes: [inference_postgres_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  inference:
+    profiles: [inference]
+    image: "${INFERENCE_IMAGE:?Set an immutable inference image}"
+    env_file: .runtime/inference.env
+    environment: {SERVICE_VERSION: "${SERVICE_VERSION:?Set tree identity}"}
+    depends_on: {inference-db: {condition: service_healthy}}
+    ports: [127.0.0.1:8001:8001]
+  cache:
+    profiles: [cache]
+    image: redis:7-alpine
+    env_file: .runtime/cache.env
+    command: [sh, -c, "exec redis-server --requirepass \"$REDIS_PASSWORD\""]
+  broker:
+    profiles: [broker]
+    image: redpandadata/redpanda:v24.1.1
+    command: [redpanda, start, --smp, "1", --overprovisioned, --kafka-addr, "internal://0.0.0.0:29092"]
+  notification-consumer:
+    profiles: [broker]
+    image: "${INGESTOR_IMAGE:?Set an immutable ingestor image}"
+    env_file: .runtime/ingestor.env
+    command: [python, -m, services.ingestor.notification_delivery_worker]
+    depends_on: [broker, ingestor-db]
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v2.54.1
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    volumes: [./prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: [127.0.0.1:9090:9090]
+volumes:
+  ingestor_postgres_data: {}
+  inference_postgres_data: {}

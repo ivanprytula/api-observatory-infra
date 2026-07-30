@@ -9,7 +9,7 @@ retained. The [evolution plan](evolution-plan.md) owns adoption triggers.
 | Invariant | Primary evidence |
 | --- | --- |
 | EC2 requires IMDSv2 and encrypted storage | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
-| RDS is private, encrypted, backed up, and protected from accidental deletion | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
+| PostgreSQL data uses encrypted EC2 EBS volumes; encrypted, versioned S3 backup artifacts have retained lifecycle rules | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
 | Network ingress and egress are explicitly bounded | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
 | IAM permissions use resource-scoped policies where the resource is known | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
 | Logs and monitoring resources are encrypted where configured | [`aws-dev/main.tf`](../../terraform/environments/aws-dev/main.tf) |
@@ -24,7 +24,7 @@ known boundary, not proof that the underlying control exists.
 | Invariant | Primary evidence |
 | --- | --- |
 | Application images and environment interfaces follow the app-owned contract | [App deployment contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md) |
-| Cloud credentials are short-lived through GitHub OIDC; no long-lived deployment keys are documented | [CI/CD guide](../ci-cd/ci-cd.md) |
+| Cloud credentials are short-lived through GitHub OIDC; EC2 receives runtime values through its SSM role, not GitHub | [CI/CD guide](../ci-cd/ci-cd.md) |
 | Rollout, health verification, and rollback are explicit steps | [Deployment guide](../deployment/deployment-guide.md) |
 | Kubernetes examples run non-root, drop capabilities, and avoid committed real secrets | [`kubernetes/`](../../kubernetes/) |
 

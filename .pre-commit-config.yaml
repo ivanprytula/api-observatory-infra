@@ -7,11 +7,39 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
         exclude: kubernetes/charts/.*/templates/
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
       - id: check-merge-conflict
+      - id: check-executables-have-shebangs
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: destroyed-symlinks
+      - id: fix-byte-order-marker
       - id: detect-private-key
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff-check
+        args: [--fix, --config=pyproject.toml]
+        files: ^scripts/.*\.py$
+      - id: ruff-format
+        files: ^scripts/.*\.py$
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+        name: gitleaks secrets scan
+
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.108.0
+    rev: v1.108.1
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
@@ -22,7 +50,7 @@ repos:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
 
   - repo: https://github.com/bridgecrewio/checkov
-    rev: 3.3.2
+    rev: 3.3.8
     hooks:
       - id: checkov
         args:
@@ -31,7 +59,7 @@ repos:
           - --quiet
           - --compact
           - --skip-check
-          - CKV2_AWS_12,CKV2_AWS_5,CKV2_AWS_41,CKV_AWS_130,CKV_AWS_157,CKV2_AWS_11,CKV2_AWS_30,CKV_AZURE_50,CKV_AZURE_43,CKV_AZURE_119,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57,CKV_AZURE_206,CKV_K8S_14,CKV_K8S_15,CKV_K8S_21,CKV_K8S_35,CKV_K8S_43,CKV_SECRET_4,CKV_SECRET_6
+          - CKV2_AWS_12,CKV2_AWS_5,CKV_AWS_130,CKV_AZURE_50,CKV_AZURE_43,CKV_AZURE_119,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57,CKV_AZURE_206,CKV_K8S_14,CKV_K8S_15,CKV_K8S_21,CKV_K8S_35,CKV_K8S_43,CKV_SECRET_4,CKV_SECRET_6
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
@@ -47,7 +75,7 @@ repos:
         args: [--severity=warning]
 
   - repo: https://github.com/ansible/ansible-lint
-    rev: v26.4.0
+    rev: v26.6.0
     hooks:
       - id: ansible-lint
         files: ansible/

@@ -9,3 +9,5 @@ docker_packages:
   - 'docker-ce'
   - 'docker-ce-cli'
   - 'docker-compose-plugin'
+docker_log_max_file: '3'
+docker_log_max_size: '10m'

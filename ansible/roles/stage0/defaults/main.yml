@@ -1,0 +1,6 @@
+---
+# AWS Stage 0 host paths. Deployment renders runtime env files from Parameter
+# Store by the EC2 role; no secret values are kept in Ansible.
+stage0_app_dir: '/opt/api-observatory-stage0'
+stage0_runtime_parameter_path: '/api-observatory/aws-dev/runtime'
+stage0_runtime_dir: '{{ stage0_app_dir }}/.runtime'
