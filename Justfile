@@ -132,7 +132,7 @@ ansible-run playbook:
     ansible-playbook "$PLAYBOOK"
 
 ansible-lint:
-    ansible-lint ansible/playbooks/*.yml
+    ansible-lint --project-dir ansible
 
 # ─── KUBERNETES / HELM ────────────────────────────────────────────────────────
 #

@@ -82,4 +82,7 @@ repos:
     rev: v26.6.0
     hooks:
       - id: ansible-lint
+        entry: ansible-lint --project-dir ansible
+        args: [--offline]
         files: ansible/
+        pass_filenames: false

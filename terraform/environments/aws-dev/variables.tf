@@ -47,6 +47,7 @@ variable "stage0_runtime_parameter_path" {
 }
 
 variable "root_volume_size" {
-  type    = number
-  default = 30
+  description = "Encrypted EC2 root volume size in GiB."
+  type        = number
+  default     = 30
 }
