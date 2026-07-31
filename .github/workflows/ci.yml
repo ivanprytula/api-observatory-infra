@@ -13,8 +13,47 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          head="${{ github.event.pull_request.head.sha || github.sha }}"
+          if [[ -n "$base" && "$base" != "0000000000000000000000000000000000000000" ]]; then
+            git fetch --no-tags --depth=2 origin "$base" "$head" >/dev/null 2>&1 || true
+            changed_files=$(git diff --name-only "$base" "$head")
+          else
+            changed_files=$(git diff-tree --no-commit-id --name-only -r "$head")
+          fi
+          echo "$changed_files"
+          workflows_regex='^\.github/workflows/(ci|deploy-aws-stage0|deploy-aws-stage|deploy-aws-prod-like)\.yml'
+          if echo "$changed_files" | grep -Eq '^(terraform/|ansible/|kubernetes/|monitoring/|deployment/|scripts/|tests/|pyproject.toml|Justfile)' \
+              || echo "$changed_files" | grep -Eq "$workflows_regex"; then
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$changed_files" | grep -Eq '^(docs/|README\.md|CONTRIBUTING\.md)' \
+              || echo "$changed_files" | grep -Eq "$workflows_regex"; then
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
   workflow-quality:
     name: Workflow and Secret Checks
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,6 +86,8 @@ jobs:
 
   ruff:
     name: Python Style
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,6 +107,8 @@ jobs:
 
   terraform-fmt:
     name: Terraform Format
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,6 +122,8 @@ jobs:
 
   terraform-validate:
     name: Terraform Validate
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -121,6 +166,8 @@ jobs:
 
   tflint:
     name: TFLint
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,6 +189,8 @@ jobs:
 
   checkov:
     name: Checkov Security Scan
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -153,10 +202,12 @@ jobs:
           compact: true
           # Skip list MUST stay in sync with .pre-commit-config.yaml and the
           # justifications in TERRAFORM_CHECKS.md (each ID = one documented row).
-          skip_check: CKV2_AWS_5,CKV2_AWS_11,CKV2_AWS_12,CKV2_AWS_62,CKV_AWS_18,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
+          skip_check: CKV2_AWS_62,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
 
   helm-lint:
     name: Helm Lint
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -175,6 +226,8 @@ jobs:
 
   yaml-lint:
     name: YAML Lint
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true' || needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -186,6 +239,8 @@ jobs:
 
   shellcheck:
     name: ShellCheck
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -196,8 +251,9 @@ jobs:
   merge-gate:
     name: Merge gate
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && (needs.changes.outputs.infra == 'true' || needs.changes.outputs.docs == 'true')
     needs:
+      - changes
       - workflow-quality
       - ruff
       - terraform-fmt
@@ -225,5 +281,5 @@ jobs:
             "$WORKFLOW_RESULT" "$RUFF_RESULT" "$TERRAFORM_FMT_RESULT" \
             "$TERRAFORM_VALIDATE_RESULT" "$TFLINT_RESULT" "$CHECKOV_RESULT" \
             "$HELM_RESULT" "$YAML_RESULT" "$SHELLCHECK_RESULT"; do
-            [[ "$result" == "success" ]] || exit 1
+            [[ "$result" == "success" || "$result" == "skipped" ]] || exit 1
           done

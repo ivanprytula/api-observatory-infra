@@ -6,7 +6,9 @@ backup artifacts. Configuration and workflows exist, but no completed live deplo
 
 The rollout is a single-host in-place recreate with a coordinated image set and best-effort
 rollback. It is not rolling, blue/green, canary, or zero-downtime delivery: there is no parallel
-stack or traffic switch, and Compose replaces changed service containers on the existing host.
+stack or traffic switch, and Compose replaces changed service containers on the existing host. For
+the canonical app-to-infra delivery checklist, see the app repository's
+[Canonical Onboarding and Delivery Checklist](https://github.com/ivanprytula/api-observatory/blob/main/docs/05-development/onboarding-and-delivery-checklist.md).
 
 Stage 0 is private/admin-only: Systems Manager is the administration and verification path. It has
 no public DNS, TLS, load balancer, or inbound application port until a separately approved public
@@ -20,6 +22,20 @@ Before any `aws-dev` Terraform initialization, bootstrap the versioned, encrypte
 bucket described in the [README state-backend setup](../../README.md#bootstrap-the-aws-state-backend).
 The backend uses Terraform's native S3 lockfile (`use_lockfile = true`); no DynamoDB lock table is
 required.
+
+## Promotion model
+
+The infrastructure repository uses a deliberately simple promotion model:
+
+| Promotion lane | Current meaning | Current implementation |
+| --- | --- | --- |
+| dev | The only active deployment lane. | `aws-dev` is the current concrete target for AWS Stage 0. |
+| stage | Reserved for a later staged environment. | Not active yet. |
+| prod-like | Reserved for a later production-like environment. | Not active yet. |
+
+The concrete environment name remains `aws-dev` for now to minimize refactoring. The logical lane is `dev`. Future multi-cloud or higher-tier environments should keep the same lane model and use a concrete target name such as `<cloud>-dev`, `<cloud>-stage`, or `<cloud>-prod-like`.
+
+For the full promotion contract and naming guidance, see [promotion model](promotion-model.md).
 
 ## Ownership and Contract
 

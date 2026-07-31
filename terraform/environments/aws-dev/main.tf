@@ -116,6 +116,15 @@ resource "aws_security_group" "app" {
   }
 }
 
+resource "aws_default_security_group" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name    = "${var.project}-default-sg"
+    Project = var.project
+  }
+}
+
 # ─── EC2 Instance ──────────────────────────────────────────────────────────────
 
 data "aws_ami" "ubuntu" {
@@ -534,6 +543,18 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "stage0_backups" {
   }
 }
 
+resource "aws_s3_bucket_logging" "stage0_backups" {
+  bucket        = aws_s3_bucket.stage0_backups.id
+  target_bucket = aws_s3_bucket.stage0_backups.id
+  target_prefix = "logs/"
+}
+
+resource "aws_s3_bucket_logging" "stage0_ansible_transfer" {
+  bucket        = aws_s3_bucket.stage0_ansible_transfer.id
+  target_bucket = aws_s3_bucket.stage0_backups.id
+  target_prefix = "logs/ansible/"
+}
+
 resource "aws_s3_bucket_versioning" "stage0_backups" {
   bucket = aws_s3_bucket.stage0_backups.id
   versioning_configuration { status = "Enabled" }
@@ -560,6 +581,42 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
     expiration { days = 30 }
     noncurrent_version_expiration { noncurrent_days = 7 }
   }
+
+  rule {
+    id     = "expire-stage0-access-logs"
+    status = "Enabled"
+
+    filter { prefix = "logs/" }
+
+    expiration { days = 7 }
+  }
+}
+
+data "aws_iam_policy_document" "stage0_backups_access_logs" {
+  statement {
+    sid    = "AllowS3AccessLogDelivery"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    actions = ["s3:PutObject"]
+
+    resources = ["${aws_s3_bucket.stage0_backups.arn}/logs/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "stage0_backups_access_logs" {
+  bucket = aws_s3_bucket.stage0_backups.id
+  policy = data.aws_iam_policy_document.stage0_backups_access_logs.json
 }
 
 data "aws_iam_policy_document" "stage0_backups" {

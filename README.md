@@ -11,6 +11,8 @@ For the whole product-to-platform story, start with the app-owned
 [Application Lifecycle and SDLC](https://github.com/ivanprytula/api-observatory/blob/main/docs/01-intro/application-lifecycle.md).
 It follows one vertical slice from idea and planning through development, delivery, operations,
 maintenance, and transformation, with direct links back to this repository at each platform stage.
+For the shared onboarding, task, PR, and release handoff checklist, use the app repository's
+[Canonical Onboarding and Delivery Checklist](https://github.com/ivanprytula/api-observatory/blob/main/docs/05-development/onboarding-and-delivery-checklist.md).
 
 ## Repository Structure
 
@@ -60,7 +62,10 @@ measured operational pressure; Kubernetes remains a later evidence-triggered sta
 AWS delivery remains disabled by default. A real deployment requires an approved Terraform plan,
 published CI-green images, reviewed runtime SecureString values, and a non-placeholder
 `environments/aws-dev/images.lock.json`. The [deployment guide](docs/deployment/deployment-guide.md)
-documents the explicit Terraform, Ansible bootstrap, and manually dispatched CD workflow.
+documents the explicit Terraform, Ansible bootstrap, and manually dispatched CD workflow, while the
+[promotion model](docs/deployment/promotion-model.md) defines the current dev/stage/prod-like lane
+structure and explains why the live target remains `aws-dev` for now. This README stays high-level so
+those deployment docs remain the single source for current workflow details.
 
 ## Prerequisites
 

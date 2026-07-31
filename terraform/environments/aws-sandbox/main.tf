@@ -27,6 +27,7 @@ provider "aws" {
 }
 
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_11:LocalStack does not implement VPC flow logs; sandbox is a local reference env only
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
 
@@ -47,57 +48,11 @@ resource "aws_subnet" "public" {
   }
 }
 
-resource "aws_security_group" "app" {
-  name_prefix = "${var.project}-sg-"
-  description = "Security group for the application EC2 instance"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
-
-  ingress {
-    # Restrict to admin CIDR until DNS + HTTPS are configured.
-    # When you need to allow a specific user, change this CIDR to their IP (e.g. "X.X.X.X/32").
-    # Once DNS + HTTPS are in place, change to "0.0.0.0/0" for general access
-    # (and add a 443 ingress rule for HTTPS).
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
-
-  egress {
-    description = "Outbound HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Outbound HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Outbound PostgreSQL"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_default_security_group" "main" {
+  vpc_id = aws_vpc.main.id
 
   tags = {
-    Name    = "${var.project}-sg"
+    Name    = "${var.project}-default-sg"
     Project = var.project
   }
 }
