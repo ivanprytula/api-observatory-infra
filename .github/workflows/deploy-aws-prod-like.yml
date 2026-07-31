@@ -1,0 +1,32 @@
+name: Deploy AWS prod-like desired state (skeleton)
+
+on:
+  workflow_dispatch:
+    inputs:
+      promotion_target:
+        description: Promotion lane to deploy
+        required: true
+        default: prod-like
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod-like
+      environment_name:
+        description: Concrete deployment target identifier
+        required: true
+        default: aws-prod-like
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  placeholder:
+    name: Placeholder deployment workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain the placeholder state
+        run: |
+          echo "This workflow is a placeholder for the aws-prod-like deployment path."
+          echo "It will be implemented once the environment is approved and the desired-state contract is finalized."
