@@ -103,7 +103,9 @@ jobs:
           set -euo pipefail
           commit=$(jq -r .source_commit_sha environments/aws-dev/images.lock.json)
           if [[ "$commit" == "0000000000000000000000000000000000000000" ]]; then
-            commit=main
+            # The placeholder lock validates the active app integration contract.
+            # Real desired state always supplies an immutable app commit.
+            commit=develop
           fi
           echo "ref=$commit" >> "$GITHUB_OUTPUT"
 
