@@ -2,10 +2,27 @@ name: Deploy AWS Stage 0 desired state
 
 on:
   workflow_dispatch:
+    inputs:
+      promotion_target:
+        description: Promotion lane to deploy
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod-like
+      environment_name:
+        description: Concrete deployment target identifier
+        required: true
+        default: aws-dev
+        type: string
+  repository_dispatch:
+    types: [app-release-published]
 
 permissions:
   checks: read
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -20,6 +37,9 @@ jobs:
       vars.AWS_INFRA_DEPLOY_ROLE_ARN != '' && vars.AWS_REGION != '' &&
       vars.AWS_EC2_INSTANCE_ID_DEV != ''
     environment: aws-dev
+    env:
+      PROMOTION_TARGET: ${{ github.event.inputs.promotion_target || github.event.client_payload.promotion_target || 'dev' }}
+      TARGET_ENVIRONMENT_NAME: ${{ github.event.inputs.environment_name || github.event.client_payload.environment_name || 'aws-dev' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -39,12 +59,61 @@ jobs:
             exit 1
           }
 
+      - name: Validate promotion target
+        run: |
+          set -euo pipefail
+          [[ "$PROMOTION_TARGET" == "dev" ]] || {
+            echo "Only the dev promotion lane is active at the moment." >&2
+            exit 1
+          }
+          [[ "$TARGET_ENVIRONMENT_NAME" == "aws-dev" ]] || {
+            echo "Only the aws-dev environment target is active at the moment." >&2
+            exit 1
+          }
+
+      - name: Promote published application release into the lock file
+        if: github.event_name == 'repository_dispatch'
+        env:
+          SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository }}
+          SOURCE_COMMIT_SHA: ${{ github.event.client_payload.source_commit_sha }}
+          SOURCE_TREE_SHA: ${{ github.event.client_payload.source_tree_sha }}
+          RELEASE_IMAGES: ${{ toJson(github.event.client_payload.images) }}
+        run: |
+          set -euo pipefail
+          metadata_path="${RUNNER_TEMP}/release-metadata.json"
+          jq -n \
+            --arg source_repository "$SOURCE_REPOSITORY" \
+            --arg source_commit_sha "$SOURCE_COMMIT_SHA" \
+            --arg source_tree_sha "$SOURCE_TREE_SHA" \
+            --argjson images "$RELEASE_IMAGES" \
+            '{
+              schema_version: 1,
+              source_repository: $source_repository,
+              source_commit_sha: $source_commit_sha,
+              source_tree_sha: $source_tree_sha,
+              images: $images
+            }' \
+            > "$metadata_path"
+          python3 scripts/promote_stage0_images.py "$metadata_path" --lock "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
+
+      - name: Commit updated image lock
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: promote app release ${{ github.event.client_payload.source_tree_sha }}"
+            git push
+          fi
+
       - id: app-ref
         name: Resolve locked application commit
         shell: bash
         run: |
           set -euo pipefail
-          source_commit_sha=$(jq -r .source_commit_sha environments/aws-dev/images.lock.json)
+          source_commit_sha=$(jq -r .source_commit_sha "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
           [[ "$source_commit_sha" =~ ^[0-9a-f]{40}$ ]]
           [[ "$source_commit_sha" != "0000000000000000000000000000000000000000" ]]
           echo "ref=$source_commit_sha" >> "$GITHUB_OUTPUT"
@@ -66,19 +135,19 @@ jobs:
           INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID_DEV }}
         run: |
           set -euo pipefail
-          tree_sha=$(jq -r .source_tree_sha environments/aws-dev/images.lock.json)
-          enabled_profiles=$(jq -r '.enabled_profiles | join(",")' environments/aws-dev/images.lock.json)
+          tree_sha=$(jq -r .source_tree_sha "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
+          enabled_profiles=$(jq -r '.enabled_profiles | join(",")' "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
           deployment_env=$({
             jq -r --arg registry "$REGISTRY" --arg sha "$tree_sha" \
               '.images | to_entries[] |
                "\(.key|ascii_upcase)_IMAGE=\($registry)/\(.value.repository)@\(.value.digest)",
                "SERVICE_VERSION=tree-\($sha)"' \
-              environments/aws-dev/images.lock.json | awk '!seen[$0]++'
+              "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json" | awk '!seen[$0]++'
             printf 'ENABLED_PROFILES=%s\n' "$enabled_profiles"
           } | base64 -w 0)
           for service in ingestor inference dashboard; do
-            repo=$(jq -r ".images.${service}.repository" environments/aws-dev/images.lock.json)
-            digest=$(jq -r ".images.${service}.digest" environments/aws-dev/images.lock.json)
+            repo=$(jq -r ".images.${service}.repository" "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
+            digest=$(jq -r ".images.${service}.digest" "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
             aws ecr describe-images \
               --repository-name "$repo" \
               --image-ids imageDigest="$digest" \
