@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  checks: read
   contents: read
   id-token: write
 
@@ -21,6 +22,22 @@ jobs:
     environment: aws-dev
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require a CI-green main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || {
+            echo "AWS Stage 0 deployment accepts only the main branch." >&2
+            exit 1
+          }
+          checks=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?per_page=100")
+          result=$(jq -r '[.check_runs[] | select(.name == "Merge gate")][0].conclusion // "missing"' <<< "$checks")
+          [[ "$result" == "success" ]] || {
+            echo "Infra CI check 'Merge gate' is ${result}." >&2
+            exit 1
+          }
 
       - id: app-ref
         name: Resolve locked application commit

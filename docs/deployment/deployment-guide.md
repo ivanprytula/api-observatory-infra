@@ -32,11 +32,11 @@ required.
 - This repository owns [`images.lock.json`](../../environments/aws-dev/images.lock.json), the AWS
   Compose topology, and deployment scripts. A reviewed lock-file change is the environment desired state.
 
-| Service | ECR repository suffix | Port | Health/readiness |
-| --- | --- | ---: | --- |
-| ingestor | `api-observatory/ingestor` | 8000 | `/health`, `/readyz` |
-| inference | `api-observatory/inference` | 8001 | `/health`, `/readyz` |
-| dashboard | `api-observatory/dashboard` | 8501 | `/_stcore/health` |
+| Service | Runtime | ECR repository suffix | Port | Health/readiness |
+| --- | --- | --- | ---: | --- |
+| ingestor | Core | `api-observatory/ingestor` | 8000 | `/health`, `/readyz` |
+| inference | Optional `inference` profile | `api-observatory/inference` | 8001 | `/health`, `/readyz` |
+| dashboard | Core | `api-observatory/dashboard` | 8501 | `/_stcore/health` |
 
 MCP remains a local stdio process and is not deployed.
 
@@ -117,7 +117,10 @@ with the broker profile. No optional profile is required for the core service cl
 
 `enabled_profiles` in `images.lock.json` is the desired-state source for these profiles. The
 deployment workflow passes it to the rollout, which pulls, starts, and verifies the selected profile;
-the inference profile also runs its migration before startup.
+the inference profile also runs its migration before startup. Stage 0 dependency images are pinned by
+registry digest in the deployment Compose file and change only through a reviewed infra PR. Selected
+services use restart policies; HTTP services and dependencies expose health checks, while the
+notification consumer's long-running process state remains its container health boundary.
 
 ## Backup and Disposable Restore
 
