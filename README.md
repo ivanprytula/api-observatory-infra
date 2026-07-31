@@ -64,8 +64,10 @@ published CI-green images, reviewed runtime SecureString values, and a non-place
 `environments/aws-dev/images.lock.json`. The [deployment guide](docs/deployment/deployment-guide.md)
 documents the explicit Terraform, Ansible bootstrap, and manually dispatched CD workflow, while the
 [promotion model](docs/deployment/promotion-model.md) defines the current dev/stage/prod-like lane
-structure and explains why the live target remains `aws-dev` for now. This README stays high-level so
-those deployment docs remain the single source for current workflow details.
+structure and explains why the live target remains `aws-dev` for now. The
+[CI/CD configuration guide](docs/deployment/ci-cd-guide.md) maps the GitHub Actions events,
+environments, variables/secrets, and OIDC wiring. This README stays high-level so those deployment
+docs remain the single source for current workflow details.
 
 ## Prerequisites
 
