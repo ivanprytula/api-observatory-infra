@@ -46,7 +46,7 @@ rollback() {
   error "Restoring previous images: ingestor=${previous_ingestor}, dashboard=${previous_dashboard}, inference=${previous_inference:-not-running}"
   mv "${PREVIOUS_ENV_FILE}" "${DEPLOYMENT_ENV_FILE}"
   configure_profiles "${DEPLOYMENT_ENV_FILE}"
-  compose up -d
+  compose up -d --wait --wait-timeout 120
 }
 
 wait_for() {
@@ -68,7 +68,7 @@ main() {
     compose up -d --wait inference-db
     compose run --rm --no-deps inference alembic upgrade head
   fi
-  compose up -d
+  compose up -d --wait --wait-timeout 120
   wait_for http://127.0.0.1:8000/readyz
   wait_for http://127.0.0.1:8501/_stcore/health
   if profile_enabled inference; then

@@ -105,7 +105,7 @@ jobs:
           if [[ "$commit" == "0000000000000000000000000000000000000000" ]]; then
             # The placeholder lock validates the active app integration contract.
             # Real desired state always supplies an immutable app commit.
-            commit=develop
+            commit=main
           fi
           echo "ref=$commit" >> "$GITHUB_OUTPUT"
 

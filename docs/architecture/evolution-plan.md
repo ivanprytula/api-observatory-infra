@@ -3,9 +3,10 @@
 > **Status:** AWS Stage 0 is a planned, statically validated direction; no live deployment is
 > claimed.
 
-The app contract defines three HTTP images—ingestor, inference, and dashboard—co-located on one EC2
-Docker Compose platform with local PostgreSQL volumes. AWS is the primary portfolio direction. Azure assets remain
-secondary/reference material; local cloud emulators remain app-owned labs.
+The app contract publishes three HTTP images: ingestor, inference, and dashboard. The default Stage 0
+runtime starts ingestor, dashboard, and the ingestor PostgreSQL database; inference and its database
+are an opt-in profile on the same EC2 Docker Compose platform. AWS is the primary portfolio direction.
+Azure assets remain secondary/reference material; local cloud emulators remain app-owned labs.
 
 ## Principles
 
@@ -21,11 +22,11 @@ secondary/reference material; local cloud emulators remain app-owned labs.
 
 | Concern | Current direction |
 | --- | --- |
-| Compute | One EC2 host running the three application images with Docker Compose |
+| Compute | One EC2 host running core images and reviewed optional profiles with Docker Compose |
 | Database | Local PostgreSQL containers on encrypted EC2 EBS volumes; inference keeps a separate optional database volume |
 | Registry | Private ECR images tagged `tree-<SHA>` |
 | Identity | Short-lived GitHub OIDC roles and EC2 instance role; prerequisite, not yet provisioned here |
-| Delivery | App-owned protected workflow through Systems Manager |
+| Delivery | Infra-owned, manually gated workflow through Systems Manager |
 | Monitoring | Prometheus/Alertmanager/Grafana/Promtail assets; live backends and evidence still required |
 | Secondary cloud | Azure Terraform/Ansible retained for comparison, not the primary deployment claim |
 

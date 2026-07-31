@@ -32,23 +32,25 @@ Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're 
 ## Working with the Repository
 
 The [`Justfile`](Justfile) owns Terraform, Ansible, Kubernetes, Helm, backup/restore, and validation
-command syntax. Run `just help-aws-stage0` for the non-mutating operator sequence. Every Terraform
-command requires an explicit `TF_ENV`. Start with static validation and a reviewed plan. Any apply, deployment,
-restore, chaos action, or teardown requires explicit target review and approval.
+command syntax. Follow [Contributing](CONTRIBUTING.md) for the task-branch and pull-request lifecycle.
+Run `just help-aws-stage0` for the non-mutating operator sequence. Every Terraform command requires an
+explicit `TF_ENV`. Start with static validation and a reviewed plan. Any apply, deployment, restore,
+chaos action, or teardown requires explicit target review and approval.
 
 ## Contract with App Repo
 
 | Contract | AWS primary Stage 0 | Azure secondary/reference |
 | --- | --- | --- |
 | Image registry | ECR | ACR |
-| Deployable services | ingestor `:8000`, inference `:8001`, dashboard `:8501` | Same application contract |
+| Published images | ingestor `:8000`, inference `:8001`, dashboard `:8501` | Same application contract |
+| Default runtime | ingestor and dashboard; inference is an opt-in profile | Same application contract |
 | Image tag format | `tree-<SHA>` | `tree-<SHA>` |
 | Compute | EC2 + Docker Compose | VM + Docker Compose |
 | Config schema | App repo environment contract | Same |
 
 ## Platform Direction
 
-Stage 0 co-locates the application images and PostgreSQL containers on one EC2 Docker Compose host,
+Stage 0 keeps the selected application images and PostgreSQL containers on one EC2 Docker Compose host,
 with ECR, Parameter Store, and retained S3 backups as its AWS control plane. This repository holds
 the AWS desired-state image lock and deployment topology. The host is operated
 privately through Systems Manager; public ingress, DNS, and TLS are deferred. This is a

@@ -24,6 +24,12 @@ EXPECTED_CONTRACT = {
     "inference": (8001, "/health", "/readyz"),
     "dashboard": (8501, "/_stcore/health", "/_stcore/health"),
 }
+EXPECTED_DEPENDENCY_IMAGES = {
+    "pgvector/pgvector:pg17-trixie",
+    "prom/prometheus:v2.54.1",
+    "redpandadata/redpanda:v24.1.1",
+    "redis:7-alpine",
+}
 
 
 def git_revision(app_root: Path, revision: str) -> str:
@@ -112,6 +118,10 @@ def validate(app_root: Path, *, allow_placeholder_lock: bool = False) -> list[st
     for profile in lock.get("enabled_profiles", []):
         if profile not in {"inference", "cache", "broker", "monitoring"}:
             errors.append(f"unsupported optional profile: {profile}")
+    for image in EXPECTED_DEPENDENCY_IMAGES:
+        pinned_image = re.compile(rf"image:\s+{re.escape(image)}@sha256:[0-9a-f]{{64}}")
+        if not pinned_image.search(compose):
+            errors.append(f"Stage 0 dependency image is not pinned by digest: {image}")
     for marker in (
         "source_commit_sha",
         "enabled_profiles",

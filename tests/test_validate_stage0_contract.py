@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -122,6 +123,34 @@ class ValidateStage0ContractTests(unittest.TestCase):
 
             self.assertTrue(any("placeholder" in error for error in strict_errors))
             self.assertEqual(fixture_errors, [])
+
+    def test_mutable_dependency_image_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "app"
+            root.mkdir()
+            commit, tree = self.make_app_repo(root)
+            lock = Path(directory) / "images.lock.json"
+            self.write_lock(lock, commit, tree)
+            compose = Path(directory) / "docker-compose.yml"
+            compose.write_text(
+                re.sub(
+                    r"(image:\s+redis:7-alpine)@sha256:[0-9a-f]{64}",
+                    r"\1",
+                    validate_stage0_contract.COMPOSE.read_text(encoding="utf-8"),
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(validate_stage0_contract, "LOCK", lock),
+                patch.object(validate_stage0_contract, "COMPOSE", compose),
+            ):
+                errors = validate_stage0_contract.validate(root)
+
+            self.assertIn(
+                "Stage 0 dependency image is not pinned by digest: redis:7-alpine",
+                errors,
+            )
 
 
 if __name__ == "__main__":

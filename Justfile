@@ -73,15 +73,10 @@ tf cmd:
             terraform apply tfplan
             ;;
         show)
-            terraform show
-            ;;
-        destroy)
-            terraform destroy \
-                -auto-approve \
-                -var-file=terraform.tfvars
+            terraform show tfplan
             ;;
         *)
-            echo "Usage: TF_ENV=<environment> just tf <init|validate|plan|show|apply|destroy>"; exit 1
+            echo "Usage: TF_ENV=<environment> just tf <init|validate|plan|show|apply>"; exit 1
             ;;
     esac
 
@@ -89,13 +84,21 @@ tf-destroy:
     #!/usr/bin/env bash
     set -euo pipefail
     ENV="${TF_ENV:?Set TF_ENV explicitly before destroy}"
+    DIR="terraform/environments/${ENV}"
+    if [ ! -d "$DIR" ]; then
+        echo "FAIL: Terraform environment directory not found: ${DIR}" >&2
+        echo "  Available: $(ls terraform/environments/)" >&2
+        exit 1
+    fi
     EXPECTED="yes-i-really-want-to-destroy-${ENV}"
     read -r -p "DANGER: Type '${EXPECTED}' to destroy ${ENV} infra: " CONFIRM
-    if [ "$CONFIRM" != "$EXPECTED" ]; then
+    if [ "${CONFIRM}" != "${EXPECTED}" ]; then
         echo "Aborted."
         exit 1
     fi
-    just tf destroy
+    terraform -chdir="${DIR}" destroy \
+        -auto-approve \
+        -var-file=terraform.tfvars
 
 help-aws-stage0:
     @echo "1. Create and configure the private S3 state backend from README.md."
