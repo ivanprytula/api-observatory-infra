@@ -4,7 +4,7 @@
 > claimed.
 
 The app contract defines three HTTP images—ingestor, inference, and dashboard—co-located on one EC2
-Docker Compose platform with RDS. AWS is the primary portfolio direction. Azure assets remain
+Docker Compose platform with local PostgreSQL volumes. AWS is the primary portfolio direction. Azure assets remain
 secondary/reference material; local cloud emulators remain app-owned labs.
 
 ## Principles
@@ -22,7 +22,7 @@ secondary/reference material; local cloud emulators remain app-owned labs.
 | Concern | Current direction |
 | --- | --- |
 | Compute | One EC2 host running the three application images with Docker Compose |
-| Database | RDS PostgreSQL; inference retains its app-defined data ownership boundary |
+| Database | Local PostgreSQL containers on encrypted EC2 EBS volumes; inference keeps a separate optional database volume |
 | Registry | Private ECR images tagged `tree-<SHA>` |
 | Identity | Short-lived GitHub OIDC roles and EC2 instance role; prerequisite, not yet provisioned here |
 | Delivery | App-owned protected workflow through Systems Manager |
@@ -36,7 +36,7 @@ is authoritative for images, ports, health, environment names, and secret-consum
 
 | Stage | Platform shape | Entry evidence |
 | --- | --- | --- |
-| 0 | Three images on one EC2 Compose host | Approved cost/security plan plus local image/contract proof |
+| 0 | Core images and PostgreSQL on one EC2 Compose host; optional dependencies as profiles | Approved cost/security plan plus local image/contract proof |
 | 1 | Same platform with strengthened service/module seams | Contract or ownership friction on the shared runtime |
 | 2 | First independently operated workload, likely inference | Independent scale, release cadence, or isolation objective |
 | 3 | Kubernetes orchestration | Several workloads need self-healing, scheduling, or consistent platform policy |

@@ -50,3 +50,13 @@
     name: 'docker'
     state: started
   become: true
+
+- name: 'Configure Docker container log rotation'
+  ansible.builtin.template:
+    dest: '/etc/docker/daemon.json'
+    group: 'root'
+    mode: '0644'
+    owner: 'root'
+    src: 'daemon.json.j2'
+  become: true
+  notify: 'Restart Docker service'

@@ -5,14 +5,17 @@ This document explains which Checkov security checks are skipped in `.pre-commit
 ## Skipped Checks (MVP Free Tier Constraints + Architecture)
 
 | Check ID | Rule | MVP Justification | Fix Timeline |
-|----------|------|-------------------|--------------|
+| ---------- | ------ | ------------------- | -------------- |
 | CKV2_AWS_12 | Default SG restricts all traffic | Removed explicit default_security_group resource; AWS manages implicitly (deny-all by default) | N/A (implicit) |
 | CKV2_AWS_5 | SGs attached to resources | Sandbox app-sg not used in dev (only in sandbox TF state); no resources using it yet | Post-MVP (when scaling) |
-| CKV2_AWS_41 | IAM role attached to EC2 | MVP uses SSH key-pair auth; IAM role for SSM/monitoring deferred | Post-MVP (SSM setup) |
-| CKV_AWS_130 | Disable public IP auto-assign | Public subnets needed for NAT/ingress; mitigated by restrictive SGs | Post-MVP (private-only) |
-| CKV_AWS_157 | Enable Multi-AZ for RDS | Free tier constraint (750 hrs/mo) — single-AZ only; ok for dev | Post-MVP (HA) |
-| CKV2_AWS_11 | Enable VPC Flow Logs | CloudWatch cost (~$0.50/GB); defer for MVP | Post-MVP (monitoring) |
-| CKV2_AWS_30 | Enable RDS Query Logging | CloudWatch cost; defer for MVP | Post-MVP (audit) |
+| CKV_AWS_130 | Disable public IP auto-assign | Stage 0 currently uses a public subnet for low-cost outbound access, but has no inbound rules and is operated through SSM | Move to private subnets/VPC endpoints before public or shared use |
+| CKV2_AWS_11 | Enable VPC Flow Logs | `aws-dev` enables flow logs; the LocalStack-only `aws-sandbox` omits paid CloudWatch plumbing | Add sandbox logging if it becomes a live or shared environment |
+| CKV2_AWS_62 | Enable S3 event notifications | Stage 0 backup and one-day Ansible transfer buckets have no event-driven consumer | Add notifications with a concrete audit or automation consumer |
+| CKV_AWS_18 | Enable S3 access logging | Stage 0 avoids a recursive logging-bucket surface; CloudTrail data events are not yet in scope | Before public or shared use |
+| CKV_AWS_21 | Enable S3 versioning | Backups are versioned; the one-day Ansible transfer bucket is intentionally ephemeral and unversioned | Revisit if transfer artifacts gain recovery value |
+| CKV_AWS_136 | Encrypt ECR with a customer-managed KMS key | ECR uses AWS-managed AES-256 encryption; a customer key adds grants, policy, and cost without a Stage 0 compliance requirement | Before regulated or shared use |
+| CKV_AWS_144 | Enable S3 cross-region replication | Single-region Stage 0 accepts regional loss and keeps restore evidence local to the target | Add after a measured cross-region recovery requirement |
+| CKV_AWS_145 | Encrypt S3 with a customer-managed KMS key | Both Stage 0 buckets use server-side AES-256 encryption; customer-key permissions would expand bootstrap and restore coupling | Before regulated or shared use |
 | CKV_AZURE_50 | No VM Extensions | Needed for monitoring agents in dev; mitigated by NSG rules | Post-MVP (managed) |
 | CKV_AZURE_43 | Storage naming convention | Current names valid; low-risk | N/A |
 | CKV_AZURE_119 | NIC without public IP | Need public IP for SSH access; restricted by NSG | Post-MVP (Bastion) |
@@ -29,31 +32,28 @@ This document explains which Checkov security checks are skipped in `.pre-commit
 
 These checks are **actively enforced**:
 
-- ✅ Encryption (KMS keys, TLS, storage encryption)
+- ✅ Encryption at rest (provider-managed or customer-managed as documented), TLS, and storage encryption
 - ✅ Network security (SG/NSG ingress/egress rules)
 - ✅ Public access restrictions (no open DB/storage to 0.0.0.0/0)
 - ✅ Terraform formatting and validation
 - ✅ No hardcoded secrets
 
-## K8s Checks (Skipped in MVP)
+## Kubernetes Scan Scope
 
-The following checks are skipped because K8s deployment is **not in MVP scope**:
-
-- CKV_K8S_14, 15, 21, 35, 43 — skipped (namespace injection, image tags, secrets patterns)
-- CKV_SECRET_4, 6 — skipped (secret detection)
-
-When migrating to K8s (post-MVP), re-enable and document as architectural decisions in a separate K8s security policy.
+The required Checkov gate scans `terraform/` only. Kubernetes examples are secondary/reference evidence
+and have separate Helm and YAML validation; they are not silently included in the Terraform policy gate.
+Add a dedicated Kubernetes security policy and Checkov job when Kubernetes becomes a deployment target.
 
 ## Scope
 
-- **Applies to**: `terraform/environments/aws-dev`, `terraform/environments/aws-sandbox`, `terraform/environments/azure-dev`
+- **Applies to**: all four directories under `terraform/environments/`
 - **Deployment target**: AWS EC2 / Azure VMs (not K8s in MVP)
 - **K8s manifests**: Kept as future reference, not scanned in MVP
 
 ## Tracked Decisions (not Checkov skips — deliberate choices with a revisit trigger)
 
 | Decision | Current choice | Rationale | Revisit when |
-|----------|---------------|-----------|--------------|
+| ---------- | --------------- | ----------- | -------------- |
 | Provider lockfile (`.terraform.lock.hcl`) | **Gitignored** (`.gitignore:6`) — not committed | Single-maintainer MVP: no lock-diff noise in PRs, CI re-resolves latest-matching on each `init -backend=false`. Trade-off: **not reproducible** — two applies days apart may use different provider patch versions, weakening the baseline's "pinned provider versions" guarantee. | **Stage 3** (K8s / multi-machine / production `apply`). Commit the lock (Terraform's official recommendation) for reproducible, auditable builds and proper Dependabot lock bumps. See [evolution-plan.md](docs/architecture/evolution-plan.md). |
 | Branch strategy | **Single-branch (`main` only)** | MVP: one maintainer, four low-risk environments (dev/sandbox × AWS/Azure). All code changes flow through `main` → all envs via `.tfvars` isolation. Risk: a bug in sandbox config could affect dev if `.tfvars` separation is not carefully maintained. No need for environment-branches yet; coordination overhead would exceed benefit. | **Stage 2** (multi-service, concurrent changes to different environments, or a second maintainer). If you see merge-coordination friction or want an audit trail (deploy-history = git-history), switch to environment-branches: `prod/aws`, `prod/azure`, optional `staging/*`. Branches would be rebase-only from `main` (fast-forward only), protecting prod from accidental config drift. |
 

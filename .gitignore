@@ -3,7 +3,7 @@
 *.tfstate.backup
 *.tfplan
 .terraform/
-.terraform.lock.hcl
+backend.*.hcl
 tfplan
 crash.log
 override.tf
@@ -38,3 +38,5 @@ Thumbs.db
 docs/.plans/
 
 .venv/
+
+.local-dev/

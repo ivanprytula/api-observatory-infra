@@ -3,15 +3,14 @@
 # Multi-cloud infrastructure management for api-observatory.
 # App repo: github.com/ivanprytula/api-observatory
 #
-# Azure (current):
-#   TF_ENV=azure-sandbox just tf init    # floci-az emulator (default)
+# Azure reference:
+#   TF_ENV=azure-sandbox just tf init    # floci-az emulator
 #   TF_ENV=azure-dev just tf plan        # Azure cloud
 #   just ansible-run provision-azure-vm  # provision Azure VM
 #
 # AWS:
 #   TF_ENV=aws-sandbox just tf init      # LocalStack emulator
 #   TF_ENV=aws-dev just tf plan          # AWS cloud
-#   just ansible-run provision-aws-ec2   # provision EC2 instance
 #
 # Cloud-neutral:
 #   just helm-lint                       # lint all Helm charts
@@ -20,22 +19,21 @@
 # ─── TERRAFORM ────────────────────────────────────────────────────────────────
 #
 # Environments:
-#   azure-sandbox  — floci-az emulator (default)
-#   azure-dev      — Azure cloud (B1s free tier)
+#   azure-sandbox  — floci-az emulator
+#   azure-dev      — Azure reference environment
 #   aws-sandbox    — LocalStack emulator
-#   aws-dev        — AWS cloud (t2.micro free tier)
+#   aws-dev        — AWS Stage 0 environment
 #
 # Usage:
-#   just tf init                          # defaults to azure-sandbox
-#   just tf plan
-#   just tf apply
-#   TF_ENV=aws-dev just tf plan           # target AWS dev
-#   just tf fresh                         # init → plan → apply
+#   TF_ENV=aws-dev just tf init
+#   TF_ENV=aws-dev just tf plan
+#   TF_ENV=aws-dev just tf show
+#   TF_ENV=aws-dev just tf apply
 
 tf cmd:
     #!/usr/bin/env bash
     set -euo pipefail
-    ENV="${TF_ENV:-azure-sandbox}"
+    ENV="${TF_ENV:?Set TF_ENV explicitly, for example TF_ENV=aws-dev}"
     CMD="{{cmd}}"
     DIR="terraform/environments/${ENV}"
     if [ ! -d "$DIR" ]; then
@@ -47,12 +45,19 @@ tf cmd:
 
     case "$CMD" in
         init)
-            BACKEND_CFG=$(ls backend.*.hcl 2>/dev/null | head -1)
-            if [ -n "${BACKEND_CFG:-}" ]; then
-                terraform init -reconfigure -upgrade -backend-config="$BACKEND_CFG"
-            else
-                terraform init -reconfigure -upgrade
+            shopt -s nullglob
+            BACKEND_CONFIGS=(backend.*.hcl)
+            if [ "${#BACKEND_CONFIGS[@]}" -eq 0 ]; then
+                echo "FAIL: Missing backend configuration for ${ENV}." >&2
+                echo "  Copy backend.s3.hcl.example to backend.s3.hcl, fill it locally," >&2
+                echo "  and create the named versioned S3 state bucket first." >&2
+                exit 1
             fi
+            if [ "${#BACKEND_CONFIGS[@]}" -gt 1 ]; then
+                echo "FAIL: Multiple backend configuration files found for ${ENV}." >&2
+                exit 1
+            fi
+            terraform init -reconfigure -upgrade -backend-config="${BACKEND_CONFIGS[0]}"
             ;;
         validate)
             terraform validate
@@ -75,20 +80,15 @@ tf cmd:
                 -auto-approve \
                 -var-file=terraform.tfvars
             ;;
-        fresh)
-            just tf init
-            just tf plan
-            just tf apply
-            ;;
         *)
-            echo "Usage: just tf <init|validate|plan|apply|show|destroy|fresh>"; exit 1
+            echo "Usage: TF_ENV=<environment> just tf <init|validate|plan|show|apply|destroy>"; exit 1
             ;;
     esac
 
 tf-destroy:
     #!/usr/bin/env bash
     set -euo pipefail
-    ENV="${TF_ENV:-azure-sandbox}"
+    ENV="${TF_ENV:?Set TF_ENV explicitly before destroy}"
     EXPECTED="yes-i-really-want-to-destroy-${ENV}"
     read -r -p "DANGER: Type '${EXPECTED}' to destroy ${ENV} infra: " CONFIRM
     if [ "$CONFIRM" != "$EXPECTED" ]; then
@@ -97,28 +97,42 @@ tf-destroy:
     fi
     just tf destroy
 
+help-aws-stage0:
+    @echo "1. Create and configure the private S3 state backend from README.md."
+    @echo "2. TF_ENV=aws-dev just tf init"
+    @echo "3. TF_ENV=aws-dev just tf validate"
+    @echo "4. TF_ENV=aws-dev just tf plan"
+    @echo "5. TF_ENV=aws-dev just tf show"
+    @echo "6. Obtain explicit approval before: TF_ENV=aws-dev just tf apply"
+    @echo "7. Bootstrap through the explicit SSM Ansible command in docs/deployment/deployment-guide.md."
+    @echo "8. Add runtime SecureStrings outside Git and review a real images.lock.json promotion."
+    @echo "9. Dispatch deployment only after the aws-dev environment approval."
+
+promote-images metadata-file:
+    uv run python scripts/promote_stage0_images.py "{{metadata-file}}"
+
 # ─── ANSIBLE ──────────────────────────────────────────────────────────────────
 #
 # Usage:
 #   just ansible-run sandbox-host         # run a playbook
 #   just ansible-run provision-azure-vm   # provision Azure VM
-#   just ansible-run provision-aws-ec2    # provision AWS EC2
 #   just ansible-lint                     # lint all playbooks
 
 ansible-run playbook:
     #!/usr/bin/env bash
     set -euo pipefail
-    PLAYBOOK="ansible/playbooks/{{playbook}}.yml"
+    cd ansible
+    PLAYBOOK="playbooks/{{playbook}}.yml"
     if [ ! -f "$PLAYBOOK" ]; then
         echo "FAIL: Playbook not found: ${PLAYBOOK}" >&2
         echo "  Available:" >&2
-        ls ansible/playbooks/*.yml | xargs -I{} basename {} .yml | sed 's/^/    /' >&2
+        ls playbooks/*.yml | xargs -I{} basename {} .yml | sed 's/^/    /' >&2
         exit 1
     fi
     ansible-playbook "$PLAYBOOK"
 
 ansible-lint:
-    ansible-lint ansible/playbooks/*.yml
+    ansible-lint --project-dir ansible
 
 # ─── KUBERNETES / HELM ────────────────────────────────────────────────────────
 #
@@ -150,8 +164,6 @@ k3d-down:
 azure-provision:
     bash scripts/azure-provision.sh
 
-aws-provision:
-    bash scripts/aws-provision.sh
 
 # Backup (cloud-neutral local + cloud-specific upload)
 backup:

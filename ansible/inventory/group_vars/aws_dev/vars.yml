@@ -1,12 +1,9 @@
 ---
 # AWS dev environment variables
 cloud_provider: aws
+aws_region: eu-central-1
+ansible_aws_ssm_region: "{{ aws_region }}"
 docker_registry: "{{ ecr_registry }}"
 ecr_registry: "ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com"
 
-app_ingestor_image: "{{ docker_registry }}/api-observatory/ingestor:latest"
-app_dashboard_image: "{{ docker_registry }}/api-observatory/dashboard:latest"
-
-pg_host: "api-observatory-pg.XXXXX.eu-central-1.rds.amazonaws.com"
-pg_port: 5432
-pg_database: api_obs_ingestor
+# Stage 0 uses immutable image digests selected by infra desired state and local Compose PostgreSQL containers.

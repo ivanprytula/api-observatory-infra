@@ -11,47 +11,43 @@ variable "project" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type (t2.micro = free tier eligible)"
+  description = "EC2 instance type for the temporary Stage 0 host"
   type        = string
   default     = "t2.micro"
 }
 
-variable "admin_cidr" {
-  description = "CIDR allowed to SSH into the instance (must be a specific IP/range)"
+variable "app_github_repository" {
+  description = "Application repository allowed to publish immutable images."
   type        = string
+  default     = "ivanprytula/api-observatory"
+}
+
+variable "infra_github_repository" {
+  description = "Infrastructure repository allowed to deploy desired state."
+  type        = string
+  default     = "ivanprytula/api-observatory-infra"
+}
+
+variable "github_oidc_provider_arn" {
+  description = "Existing GitHub Actions OIDC provider ARN. Leave null for Terraform to create it."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "stage0_runtime_parameter_path" {
+  description = "Parameter Store path that holds service-scoped Stage 0 runtime variables."
+  type        = string
+  default     = "/api-observatory/aws-dev/runtime"
 
   validation {
-    condition     = var.admin_cidr != "*" && var.admin_cidr != "0.0.0.0/0"
-    error_message = "admin_cidr must be a specific CIDR, not the entire internet."
+    condition     = startswith(var.stage0_runtime_parameter_path, "/")
+    error_message = "stage0_runtime_parameter_path must begin with '/'."
   }
 }
 
-variable "ssh_public_key" {
-  description = "SSH public key for EC2 access"
-  type        = string
-  sensitive   = true
-}
-
-variable "pg_admin_user" {
-  description = "PostgreSQL admin username"
-  type        = string
-  default     = "pgadmin"
-}
-
-variable "pg_admin_password" {
-  description = "PostgreSQL admin password"
-  type        = string
-  sensitive   = true
-}
-
-variable "pg_database_name" {
-  description = "PostgreSQL database name"
-  type        = string
-  default     = "api_obs_ingestor"
-}
-
-variable "rds_instance_class" {
-  description = "RDS instance class (db.t3.micro = free tier eligible)"
-  type        = string
-  default     = "db.t3.micro"
+variable "root_volume_size" {
+  description = "Encrypted EC2 root volume size in GiB."
+  type        = number
+  default     = 30
 }
