@@ -15,8 +15,10 @@ COMPOSE = ROOT / "deployment/aws-stage0/docker-compose.yml"
 TERRAFORM = ROOT / "terraform/environments/aws-dev/main.tf"
 WORKFLOW = ROOT / ".github/workflows/deploy-aws-stage0.yml"
 ROLLOUT = ROOT / "deployment/aws-stage0/rollout.sh"
+PYTHON_VERSION = ROOT / ".python-version"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+PYTHON_MINOR = re.compile(r"^\d+\.\d+$")
 PLACEHOLDER_SHA = "0" * 40
 PLACEHOLDER_DIGEST = f"sha256:{'0' * 64}"
 EXPECTED_CONTRACT = {
@@ -43,12 +45,28 @@ def git_revision(app_root: Path, revision: str) -> str:
     return result.stdout.strip()
 
 
+def selected_python_minor(path: Path) -> str | None:
+    """Return a valid major.minor selector from a .python-version file."""
+    if not path.is_file():
+        return None
+    version = path.read_text(encoding="utf-8").strip()
+    return version if PYTHON_MINOR.fullmatch(version) else None
+
+
 def validate(app_root: Path, *, allow_placeholder_lock: bool = False) -> list[str]:
     errors: list[str] = []
     manifest_path = app_root / "release/services.json"
     if not manifest_path.is_file():
         return ["app release/services.json is missing"]
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    app_python = selected_python_minor(app_root / ".python-version")
+    infra_python = selected_python_minor(PYTHON_VERSION)
+    if app_python is None:
+        errors.append("app .python-version must contain a major.minor selector")
+    if infra_python is None:
+        errors.append("infra .python-version must contain a major.minor selector")
+    if app_python and infra_python and app_python != infra_python:
+        errors.append("app and infra .python-version values must match")
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
     compose = COMPOSE.read_text(encoding="utf-8")
     terraform = TERRAFORM.read_text(encoding="utf-8")
