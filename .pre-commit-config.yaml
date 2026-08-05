@@ -86,3 +86,12 @@ repos:
         args: [--offline]
         files: ansible/
         pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: docs-command-references
+        name: docs command/reference check
+        entry: uv run python scripts/check_docs_commands.py
+        language: system
+        pass_filenames: false
+        files: ^(README\.md|CONTRIBUTING\.md|Justfile|docs/|kubernetes/)
