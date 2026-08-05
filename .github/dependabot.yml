@@ -5,13 +5,17 @@ version: 2
 # Keep this file in sync on the default branch to ensure target-branch rules apply.
 
 updates:
-  # Python package updates (uv — pyproject.toml + uv.lock)
+  # Python package updates (uv — pyproject.toml + uv.lock). Major upgrades stay
+  # separate; compatible updates are grouped for a small weekly review surface.
   - package-ecosystem: uv
     directory: "/"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: "UTC"
     target-branch: main
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     reviewers:
       - ivanprytula
     assignees:
@@ -20,6 +24,7 @@ updates:
       - dependencies
     allow:
       - dependency-type: "direct"
+      - dependency-type: "indirect"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -39,9 +44,12 @@ updates:
   - package-ecosystem: terraform
     directory: "/terraform/environments/aws-dev"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "UTC"
     target-branch: main
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     reviewers:
       - ivanprytula
     assignees:
@@ -65,9 +73,12 @@ updates:
   - package-ecosystem: terraform
     directory: "/terraform/environments/azure-dev"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "UTC"
     target-branch: main
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     reviewers:
       - ivanprytula
     assignees:
@@ -91,9 +102,12 @@ updates:
   - package-ecosystem: terraform
     directory: "/terraform/environments/aws-sandbox"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "UTC"
     target-branch: main
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     reviewers:
       - ivanprytula
     assignees:
@@ -117,9 +131,12 @@ updates:
   - package-ecosystem: terraform
     directory: "/terraform/environments/azure-sandbox"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "UTC"
     target-branch: main
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     reviewers:
       - ivanprytula
     assignees:
