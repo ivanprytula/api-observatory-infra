@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: analytics
         app.kubernetes.io/component: api
     spec:
-      serviceAccountName: data-zoo-app
+      serviceAccountName: api-observatory-app
       automountServiceAccountToken: false
       securityContext:
         fsGroup: 10001
@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: analytics
-          image: data-zoo/analytics:latest
+          image: api-observatory/analytics:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -34,7 +34,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: database_url
             - name: ENVIRONMENT
               value: local

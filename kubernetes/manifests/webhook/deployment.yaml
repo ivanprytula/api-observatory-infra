@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: webhook
         app.kubernetes.io/component: gateway
     spec:
-      serviceAccountName: data-zoo-app
+      serviceAccountName: api-observatory-app
       automountServiceAccountToken: false
       securityContext:
         fsGroup: 10001
@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: webhook
-          image: data-zoo/webhook:latest
+          image: api-observatory/webhook:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -34,22 +34,22 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: database_url
             - name: BROKER_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: broker_url
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: webhook_admin_token
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:
-                  name: data-zoo-app-config
+                  name: api-observatory-app-config
                   key: otel_endpoint
             - name: ENVIRONMENT
               value: local

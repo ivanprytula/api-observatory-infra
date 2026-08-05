@@ -2,7 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: ingestor
-  namespace: data-zoo
+  namespace: api-observatory
   labels:
     app.kubernetes.io/name: ingestor
     app.kubernetes.io/component: api

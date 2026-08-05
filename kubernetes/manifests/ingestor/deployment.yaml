@@ -21,7 +21,7 @@ spec:
         app.kubernetes.io/name: ingestor
         app.kubernetes.io/component: api
     spec:
-      serviceAccountName: data-zoo-app
+      serviceAccountName: api-observatory-app
       automountServiceAccountToken: false
       securityContext:
         fsGroup: 10001
@@ -29,14 +29,14 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: migrate
-          image: data-zoo/ingestor:latest
+          image: api-observatory/ingestor:latest
           imagePullPolicy: Always
           command: ["alembic", "upgrade", "head"]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: database_url
           securityContext:
             runAsUser: 10001
@@ -52,7 +52,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: ingestor
-          image: data-zoo/ingestor:latest
+          image: api-observatory/ingestor:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -62,37 +62,37 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: database_url
             - name: INTERNAL_JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: internal_jwt_secret
             - name: BROKER_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: broker_url
             - name: CACHE_URL
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: cache_url
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: data-zoo-app-secrets
+                  name: api-observatory-app-secrets
                   key: admin_token
             - name: INFERENCE_URL
               valueFrom:
                 configMapKeyRef:
-                  name: data-zoo-app-config
+                  name: api-observatory-app-config
                   key: inference_url
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:
-                  name: data-zoo-app-config
+                  name: api-observatory-app-config
                   key: otel_exporter_otlp_endpoint
             - name: ENVIRONMENT
               value: local
