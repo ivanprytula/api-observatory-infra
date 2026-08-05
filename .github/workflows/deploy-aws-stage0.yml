@@ -133,7 +133,7 @@ jobs:
           path: .app-release
           ref: ${{ steps.app-ref.outputs.ref }}
       - run: uv run python scripts/validate_stage0_contract.py --app-root .app-release
-      - uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: ${{ vars.AWS_INFRA_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
