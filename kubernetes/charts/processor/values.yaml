@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: data-zoo/processor
+  repository: api-observatory/processor
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -37,9 +37,9 @@ env:
   environment: local
 
 secrets:
-  name: data-zoo-app-secrets
+  name: api-observatory-app-secrets
   brokerUrlKey: broker_url
 
 configmap:
-  name: data-zoo-app-config
+  name: api-observatory-app-config
   kafkaTopicKey: kafka_topic

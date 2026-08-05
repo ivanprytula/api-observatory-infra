@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}
   annotations:
-    data-zoo/replica-constraint: "single-consumer; scale by increasing topic partitions first"
+    api-observatory/replica-constraint: "single-consumer; scale by increasing topic partitions first"
   labels:
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}

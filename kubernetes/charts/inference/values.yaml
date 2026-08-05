@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: data-zoo/inference
+  repository: api-observatory/inference
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -33,9 +33,9 @@ env:
   environment: local
 
 secrets:
-  name: data-zoo-app-secrets
+  name: api-observatory-app-secrets
   qdrantUrlKey: qdrant_url
 
 configmap:
-  name: data-zoo-app-config
+  name: api-observatory-app-config
   logLevelKey: log_level

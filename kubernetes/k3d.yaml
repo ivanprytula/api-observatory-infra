@@ -1,7 +1,7 @@
 apiVersion: k3d.io/v1alpha5
 kind: Simple
 metadata:
-  name: data-zoo
+  name: api-observatory
 servers: 1
 agents: 0
 ports:
@@ -18,6 +18,6 @@ options:
           - server:*
 registries:
   create:
-    name: data-zoo-registry
+    name: api-observatory-registry
     host: "0.0.0.0"
     hostPort: "5000"

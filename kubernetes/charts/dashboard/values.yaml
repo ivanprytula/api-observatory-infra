@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: data-zoo/dashboard
+  repository: api-observatory/dashboard
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -31,5 +31,5 @@ env:
   environment: local
 
 configmap:
-  name: data-zoo-app-config
+  name: api-observatory-app-config
   ingestorUrlKey: ingestor_url

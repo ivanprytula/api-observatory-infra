@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: data-zoo/ingestor
+  repository: api-observatory/ingestor
   tag: latest
   pullPolicy: Always
 
@@ -27,13 +27,13 @@ env:
   environment: local
 
 secrets:
-  name: data-zoo-app-secrets
+  name: api-observatory-app-secrets
   databaseUrlKey: database_url
   brokerUrlKey: broker_url
   cacheUrlKey: cache_url
   adminTokenKey: admin_token
 
 config:
-  name: data-zoo-app-config
+  name: api-observatory-app-config
   inferenceUrlKey: inference_url
   otelEndpointKey: otel_exporter_otlp_endpoint
