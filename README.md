@@ -33,11 +33,21 @@ Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're 
 
 ## Working with the Repository
 
-The [`Justfile`](Justfile) owns Terraform, Ansible, Kubernetes, Helm, backup/restore, and validation
-command syntax. Follow [Contributing](CONTRIBUTING.md) for the task-branch and pull-request lifecycle.
-Run `just help-aws-stage0` for the non-mutating operator sequence. Every Terraform command requires an
-explicit `TF_ENV`. Start with static validation and a reviewed plan. Any apply, deployment, restore,
-chaos action, or teardown requires explicit target review and approval.
+The [`Justfile`](Justfile) owns supported named workflows: image promotion, Ansible linting, Helm
+linting, and non-mutating Stage 0/Kubernetes scope help. Native Terraform and Ansible commands are
+appropriate for explicit operator work. Follow [Contributing](CONTRIBUTING.md) for the task-branch and
+pull-request lifecycle. Run `just help-aws-stage0` for the non-mutating operator sequence. Start with
+static validation and a reviewed plan. Any apply, deployment, restore, chaos action, or teardown requires
+explicit target review and approval.
+
+## Runtime and Dependency Maintenance
+
+`.python-version` selects the shared Python minor series (`3.14`) while `uv` resolves its current
+compatible patch release. Dependabot opens weekly `uv` and GitHub Actions update PRs; review the
+compatible group and each major upgrade while the change is small. When adopting a new Python minor,
+change `.python-version` here and in the app repository in the same maintenance slice, then run
+`uv lock --upgrade` and the relevant CI suites. Do not raise `requires-python` lower bounds unless
+you are deliberately dropping support for an older runtime.
 
 ## Contract with App Repo
 
@@ -96,14 +106,13 @@ The AWS Session Manager plugin is a native AWS package, not a PyPI dependency. I
 local credential store or short-lived federation; never put them in repository files. Pre-commit
 hooks run most remaining checks in isolated environments.
 
-Always select the cloud environment explicitly; Terraform recipes refuse to infer a target. Before
-AWS initialization, create the versioned, encrypted, private S3 state
+Always select the Terraform environment explicitly by working from its directory. Before AWS
+initialization, create the versioned, encrypted, private S3 state
 bucket. The backend uses S3-native lockfiles; DynamoDB locking is deprecated by Terraform. Then copy
 `terraform/environments/aws-dev/backend.s3.hcl.example` to the ignored
-`backend.s3.hcl` and fill it locally. Then use `TF_ENV=aws-dev just tf init` followed by
-`TF_ENV=aws-dev just tf plan` for AWS Stage 0. Initialization configures the selected environment's
-backend; it is non-mutating to cloud resources, while `plan` is still a required review gate before
-any apply.
+`backend.s3.hcl` and fill it locally. Use the native commands below for AWS Stage 0. Initialization
+configures that environment's backend; it is non-mutating to cloud resources, while `plan` is still a
+required review gate before any apply.
 
 ### Bootstrap the AWS State Backend
 
@@ -135,8 +144,11 @@ Create the ignored backend file from the template and replace `ACCOUNT_ID` with 
 ```bash
 cp terraform/environments/aws-dev/backend.s3.hcl.example \
   terraform/environments/aws-dev/backend.s3.hcl
-TF_ENV=aws-dev just tf init
-TF_ENV=aws-dev just tf plan
+cd terraform/environments/aws-dev
+terraform init -reconfigure -upgrade -backend-config=backend.s3.hcl
+terraform validate
+terraform plan -input=false -var-file=terraform.tfvars -out=tfplan
+terraform show tfplan
 ```
 
 `use_lockfile = true` causes Terraform to create and remove

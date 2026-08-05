@@ -16,7 +16,8 @@ demo requirement exists.
 
 Real provisioning, deployment, restore, and teardown mutate an account and may create cost. Review
 the exact plan/targets and obtain explicit approval before running them. The
-[`Justfile`](../../Justfile), Terraform, Ansible, and app workflows own command syntax.
+[`Justfile`](../../Justfile) owns supported named workflows; native Terraform and Ansible commands
+below own explicit operator work.
 
 Before any `aws-dev` Terraform initialization, bootstrap the versioned, encrypted, private S3 state
 bucket described in the [README state-backend setup](../../README.md#bootstrap-the-aws-state-backend).
@@ -59,12 +60,39 @@ MCP remains a local stdio process and is not deployed.
 ## Preparation Gates
 
 1. Validate all three images and the app/infra contract locally.
-2. Review Terraform plan, Checkov exceptions, expected cost, state retention, and teardown.
-3. Apply the reviewed Terraform only after approval. It creates ECR, GitHub OIDC/role configuration
+2. From `terraform/environments/aws-dev`, create and review the plan with the native Terraform commands:
+
+   ```bash
+   terraform init -reconfigure -upgrade -backend-config=backend.s3.hcl
+   terraform validate
+   terraform plan -input=false -var-file=terraform.tfvars -out=tfplan
+   terraform show tfplan
+   ```
+
+   Apply only the reviewed saved plan after explicit approval:
+
+   ```bash
+   terraform apply tfplan
+   ```
+
+   `terraform apply` mutates the selected AWS account and can create cost.
+3. Review Checkov exceptions, expected cost, state retention, and teardown.
+4. Apply the reviewed Terraform only after approval. It creates ECR, GitHub OIDC/role configuration
    (or accepts an existing provider ARN), the EC2 instance role, encrypted backup bucket, and runtime
    storage boundary.
-4. Bootstrap the new or replaced host through SSM. Run this command from `ansible/`; it obtains
+5. Bootstrap the new or replaced host through SSM. Run this preflight from `ansible/`; it obtains
    Terraform outputs without writing a real instance ID into tracked inventory:
+
+   ```bash
+   ansible-playbook -i inventory/hosts.yml --limit aws_dev \
+     -e "ansible_host=$(terraform -chdir=../terraform/environments/aws-dev output -raw instance_id)" \
+     -e "ansible_aws_ssm_bucket_name=$(terraform -chdir=../terraform/environments/aws-dev output -raw stage0_ansible_transfer_bucket)" \
+     --check --diff \
+     playbooks/bootstrap-aws-stage0.yml
+   ```
+
+   After reviewing the check/diff output and obtaining approval, run the same operation without
+   `--check --diff`:
 
    ```bash
    ansible-playbook -i inventory/hosts.yml --limit aws_dev \
@@ -76,13 +104,13 @@ MCP remains a local stdio process and is not deployed.
    The controller needs `session-manager-plugin` plus S3 read/write/delete access to the dedicated,
    short-lived Ansible transfer bucket. The instance downloads only controller-generated presigned
    URLs; it does not need an SSH key or inbound port 22.
-5. Create the required SecureString values outside Terraform and repository/workflow files. Bootstrap
+6. Create the required SecureString values outside Terraform and repository/workflow files. Bootstrap
    is deliberately secret-free; it only prepares Docker, protected directories, and helper commands.
-6. Download the app publisher's `release-metadata-<commit-SHA>` artifact and run
+7. Download the app publisher's `release-metadata-<commit-SHA>` artifact and run
    `just promote-images <artifact-path>`. Review the deterministic `images.lock.json` diff, including
    its source commit, tree, digests, and optional profiles. Commit that desired state through a PR,
-   then manually deploy it
-   state by manually dispatching the [AWS Stage 0 deployment workflow](../../.github/workflows/deploy-aws-stage0.yml).
+   then manually dispatch the [AWS Stage 0 deployment workflow](../../.github/workflows/deploy-aws-stage0.yml)
+   to deploy that reviewed state.
    The workflow renders runtime files on the host, copies the reviewed Compose assets, pulls only the
    locked digests with the EC2 role, runs migrations, and executes readiness and authenticated smoke
    checks.

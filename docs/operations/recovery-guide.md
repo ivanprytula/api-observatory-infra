@@ -30,17 +30,41 @@ Infra dashboards, alerts, and collection boundaries live in
 | Backup/restore | Backup artifact identity, checksum, schema/version, restore target | Restore only to an explicit disposable target first; verify migrations and critical reads before considering promotion |
 | Fault/chaos exercise | Baseline health/signals, injected fault, recovery time | Use one reversible local fault, verify cleanup, and retain the before/failure/recovery evidence |
 
-## Backup and Restore
+## Legacy Backup and Restore Scripts
 
-[`scripts/backup.sh`](../../scripts/backup.sh) and [`scripts/restore.sh`](../../scripts/restore.sh)
-contain local PostgreSQL/MongoDB and Azure Blob-era behavior. AWS variants are
-[`backup-s3.sh`](../../scripts/backup-s3.sh) and [`restore-s3.sh`](../../scripts/restore-s3.sh).
-The restore script drops and recreates its configured database.
+The following scripts are legacy local/Azure-era material and are not supported `Justfile` workflows
+or verified Stage 0 recovery proof. Before use, inspect the configured database name, host, artifact
+format, storage destination, credentials, and cleanup behavior. Never point a rehearsal at an
+unverified remote or production target.
 
-These scripts still carry legacy database/service assumptions and are not verified Stage 0 recovery
-proof. Before use, inspect database name, host, artifact format, storage destination, credentials,
-and cleanup behavior. Never point a rehearsal at an unverified remote/production target. A backup
-is not evidence until a restore to a disposable target has been checked.
+```bash
+# Creates local PostgreSQL/MongoDB artifacts using the script's configured targets.
+bash scripts/backup.sh
+
+# Creates local artifacts, then uploads them to the configured S3 bucket.
+bash scripts/backup-s3.sh
+
+# Lists available local or Azure Blob-era artifacts; it does not restore data.
+bash scripts/restore.sh list
+
+# Lists S3 artifacts; it does not restore data.
+bash scripts/restore-s3.sh list
+```
+
+The commands below are destructive: `restore.sh` drops and recreates its configured PostgreSQL or
+MongoDB database, and `restore-s3.sh` downloads an S3 artifact then invokes that same destructive
+restore. Use an explicit disposable database only, confirm the script prompt, and preserve the
+pre-restore artifact identity and checksum.
+
+```bash
+# DESTRUCTIVE: restores a local artifact into the configured database.
+bash scripts/restore.sh postgres <backup-file>
+
+# DESTRUCTIVE: downloads the S3 object, then restores it into the configured database.
+bash scripts/restore-s3.sh postgres <s3-key>
+```
+
+A backup is not recovery evidence until a restore to a disposable target has been checked.
 
 ## Circuit Breaker and DLQ
 
@@ -56,7 +80,16 @@ size/rate, and verify lag plus application outcomes after replay.
 ## Fault Exercises
 
 [`scripts/chaos.sh`](../../scripts/chaos.sh) is an infrastructure experiment with legacy container
-targets; it must be reviewed before use and is not current Stage 0 proof. Prefer the app-owned
+targets; it is not a supported `Justfile` workflow or current Stage 0 proof. It stops containers,
+alters container network settings, or changes container memory limits depending on the scenario.
+Use it only against an explicit disposable local target after approval:
+
+```bash
+# DESTRUCTIVE to the selected local container runtime: inspect the script and target first.
+bash scripts/chaos.sh <kill|network|db|kafka|memory|gauntlet>
+```
+
+Prefer the app-owned
 [performance/failure worksheet](https://github.com/ivanprytula/api-observatory/blob/main/docs/05-development/performance-and-failure-lab.md)
 and maintained focused verifier for current local evidence.
 

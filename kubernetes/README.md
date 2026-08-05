@@ -1,134 +1,41 @@
-# Kubernetes Local Deploy Scaffolding
+# Kubernetes Assets — Deferred/Post-MVP
 
-This directory provides Kubernetes deployment assets for the data-zoo services, targeting a **k3d** cluster for local sandbox development.
+Kubernetes is a future platform option for API Observatory, not a historical
+surface. These cloud-neutral manifests, Helm charts, and Kustomize overlays are
+kept as design and validation material for a later, evidence-triggered stage.
+They are not a supported local deployment workflow and must not be presented as
+runtime or production evidence.
 
-## Architecture
+The current supported runtime is app-owned local Compose. AWS Stage 0 is the
+next portfolio direction and remains a configuration/decision claim until an
+approved live deployment is verified. See the repository [README](../README.md)
+and [evolution plan](../docs/architecture/evolution-plan.md).
 
-| Service | Port | Source code | Deployed in k3s |
-|---------|------|-------------|------------------|
-| **ingestor** | 8000 | `services/ingestor/` | ✅ |
-| **dashboard** | 8003 | `services/dashboard/` | ✅ |
-| **postgresql** | 5432 | bitnami Helm chart | ✅ (infra) |
-| **redis** | 6379 | bitnami Helm chart | ✅ (infra) |
-| **redpanda** | 9092 | redpanda Helm chart | ✅ (infra) |
+## Post-MVP Scope
 
-Services without source code in this repo (analytics, inference, processor, webhook) are **not deployed** in the local k3s sandbox.
+The previous `k3s-*` recipe names are intentionally unavailable: no k3d,
+`kubectl apply`, image-build, secret, or teardown command is currently
+supported by the `Justfile`. Run `just help-kubernetes` for the same boundary.
 
-## Prerequisites
+Before enabling a Kubernetes workflow, reconcile these assets with the current
+app contract, then add named recipes only for stable, supported workflows.
+Native `kubectl`, Helm, and k3d commands remain explicit operator work and need
+a reviewed target, plan/change view, and approval before mutation.
 
-- [k3d](https://k3d.io/) (v5.x) — lightweight k3s in Docker
-- [Helm](https://helm.sh/) (v3.x) — package manager for Kubernetes
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) — Kubernetes CLI
-- [Docker](https://docs.docker.com/get-docker/) — container runtime
+## Included Assets
 
-```bash
-# macOS
-brew install k3d helm kubectl
+- `k3d.yaml` — deferred local-cluster configuration using the `api-observatory`
+  naming namespace.
+- `overlays/local/` — deferred local Kustomize overlay and example secret
+  template; no real secret belongs in this repository.
+- `charts/` and `helm-values/` — cloud-neutral Helm material for future review.
+- `manifests/` — base workloads, services, autoscaling, RBAC, and NetworkPolicy
+  material.
 
-# Linux (k3d)
-curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-```
+## Activation Evidence
 
-## Quick Start
-
-One command to create the cluster, build images, deploy infrastructure, and deploy apps:
-
-```bash
-just k3s-up
-```
-
-Wait ~2 minutes for PostgreSQL, Redis, and Redpanda to initialize, then verify:
-
-```bash
-just k3s-status
-```
-
-Ingress is available at:
-
-| Host | Port | Service |
-|------|------|---------|
-| `ingestor.127.0.0.1.nip.io` | 8080 | ingestor:8000 |
-| `dashboard.127.0.0.1.nip.io` | 8080 | dashboard:8003 |
-
-```bash
-curl -s http://ingestor.127.0.0.1.nip.io:8080/health
-curl -s http://dashboard.127.0.0.1.nip.io:8080
-```
-
-## Step-by-step
-
-```bash
-# 1. Create cluster
-just k3s-cluster-create
-
-# 2. Build images
-just k3s-build
-
-# 3. Load images into cluster
-just k3s-load-images
-
-# 4. Deploy infrastructure (PostgreSQL, Redis, Redpanda)
-just k3s-deploy-infra
-
-# 5. Apply secrets (edit secret.example.yaml first for custom values)
-just k3s-secret
-
-# 6. Deploy app services
-just k3s-deploy
-```
-
-## Justfile recipes
-
-| Recipe | Description |
-|--------|-------------|
-| `k3s-up` | Full lifecycle: create → build → load → deploy infra → deploy apps |
-| `k3s-down` | Delete the k3d cluster |
-| `k3s-cluster-create` | Create the k3d cluster |
-| `k3s-cluster-delete` | Delete the k3d cluster |
-| `k3s-build` | Build Docker images for ingestor + dashboard |
-| `k3s-load-images` | Import images into the k3d cluster |
-| `k3s-deploy-infra` | Install PostgreSQL, Redis, Redpanda via Helm |
-| `k3s-secret` | Apply app secrets from template |
-| `k3s-deploy` | Apply kustomize overlay + wait for rollout |
-| `k3s-status` | Show pods, deployments, services, ingress |
-| `k3s-logs <service>` | Tail logs for a deployment |
-| `k3s-port-forward <svc> <local> <remote>` | Port-forward a service |
-
-## Included assets
-
-- `k3d.yaml` — k3d cluster definition (1 server, port mappings, built-in registry)
-- `overlays/local/kustomization.yaml` — kustomize overlay (namespace, RBAC, ConfigMap, deployments, ingress)
-- `overlays/local/secret.example.yaml` — secret template (edit before deploy)
-- `overlays/local/config.yaml` — app ConfigMap (ingestor_url)
-- `helm-values/postgresql.yaml` — PostgreSQL Helm values
-- `helm-values/redis.yaml` — Redis Helm values
-- `helm-values/redpanda.yaml` — Redpanda Helm values
-- `manifests/` — base manifests for reference (deployment, service, HPA, network policies)
-
-## Horizontal Pod Autoscaler (HPA)
-
-The `ingestor` deployment includes an HPA (`overlays/local/ingestor-hpa.yaml`) with `minReplicas: 2`, `maxReplicas: 10`, targeting 60% CPU.
-
-HPA requires `metrics-server`. k3d includes it by default. If missing:
-
-```bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-kubectl -n kube-system patch deployment metrics-server --type='json' \
-  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
-```
-
-## NetworkPolicy
-
-`manifests/network-policies/` contains zero-trust NetworkPolicy manifests with a default-deny-all-ingress baseline and explicit allow rules for ingestor and dashboard.
-
-## Tear down
-
-```bash
-just k3s-down
-```
-
-To also remove the local registry:
-
-```bash
-k3d registry delete k3d-data-zoo-registry
-```
+Activation requires a measured capacity, availability, ownership, or deployment
+trigger; a reconciled app/service topology and images; resource requests and
+limits; default-deny plus matching NetworkPolicies; cloud-specific settings in
+overlays; and an approved, exercised local workflow. Until then, validate chart
+syntax with `just helm-lint` only.
