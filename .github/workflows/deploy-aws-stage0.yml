@@ -43,6 +43,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync Python tooling
+        run: uv sync --frozen
+
       - name: Require a CI-green main commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,7 +103,7 @@ jobs:
               images: $images
             }' \
             > "$metadata_path"
-          python3 scripts/promote_stage0_images.py "$metadata_path" --lock "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
+          uv run python scripts/promote_stage0_images.py "$metadata_path" --lock "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
 
       - name: Commit updated image lock
         if: github.event_name == 'repository_dispatch'
@@ -123,7 +132,7 @@ jobs:
           repository: ivanprytula/api-observatory
           path: .app-release
           ref: ${{ steps.app-ref.outputs.ref }}
-      - run: python3 scripts/validate_stage0_contract.py --app-root .app-release
+      - run: uv run python scripts/validate_stage0_contract.py --app-root .app-release
       - uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
         with:
           role-to-assume: ${{ vars.AWS_INFRA_DEPLOY_ROLE_ARN }}

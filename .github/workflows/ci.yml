@@ -38,7 +38,9 @@ jobs:
           fi
           echo "$changed_files"
           workflows_regex='^\.github/workflows/(ci|deploy-aws-stage0|deploy-aws-stage|deploy-aws-prod-like)\.yml'
-          if echo "$changed_files" | grep -Eq '^(terraform/|ansible/|kubernetes/|monitoring/|deployment/|scripts/|tests/|pyproject.toml|Justfile)' \
+          infra_paths_regex='^(terraform/|ansible/|kubernetes/|monitoring/|deployment/|scripts/|tests/'
+          infra_paths_regex+='|pyproject.toml|uv.lock|\.python-version|Justfile)'
+          if echo "$changed_files" | grep -Eq "$infra_paths_regex" \
               || echo "$changed_files" | grep -Eq "$workflows_regex"; then
             echo "infra=true" >> "$GITHUB_OUTPUT"
           else
@@ -92,18 +94,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Lint Python scripts
-        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3.6.1
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          args: check scripts
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
-      - name: Check Python script formatting
-        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3.6.1
-        with:
-          args: format --check scripts
+      - name: Sync Python tooling
+        run: uv sync --frozen
+
+      - name: Lint and format Python scripts
+        run: |
+          uv run ruff check scripts
+          uv run ruff format --check scripts
 
       - name: Test Stage 0 contract and promotion scripts
-        run: python3 -m unittest discover -s tests -v
+        run: uv run python -m unittest discover -s tests -v
 
   terraform-fmt:
     name: Terraform Format
@@ -112,6 +118,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync Python tooling
+        run: uv sync --frozen
 
       - uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
@@ -162,7 +177,7 @@ jobs:
           ref: ${{ steps.app-ref.outputs.ref }}
 
       - name: Validate the pre-provisioning app and infra Stage 0 contract
-        run: python3 scripts/validate_stage0_contract.py --allow-placeholder-lock --app-root .stage0-app-contract
+        run: uv run python scripts/validate_stage0_contract.py --allow-placeholder-lock --app-root .stage0-app-contract
 
   tflint:
     name: TFLint
@@ -232,10 +247,37 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - run: python3 -m pip install --disable-pip-version-check yamllint==1.38.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync Python tooling
+        run: uv sync --frozen
 
       - name: Run yamllint
-        run: yamllint -c .yamllint.yml .
+        run: uv run yamllint -c .yamllint.yml .
+
+  docs-command-references:
+    name: Docs Command References
+    needs: [changes]
+    if: needs.changes.outputs.infra == 'true' || needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync Python tooling
+        run: uv sync --frozen
+
+      - name: Check active documentation commands and Kubernetes namespace
+        run: uv run python scripts/check_docs_commands.py
 
   shellcheck:
     name: ShellCheck
@@ -262,6 +304,7 @@ jobs:
       - checkov
       - helm-lint
       - yaml-lint
+      - docs-command-references
       - shellcheck
     steps:
       - name: Require every infrastructure CI job
@@ -274,12 +317,14 @@ jobs:
           CHECKOV_RESULT: ${{ needs.checkov.result }}
           HELM_RESULT: ${{ needs.helm-lint.result }}
           YAML_RESULT: ${{ needs.yaml-lint.result }}
+          DOCS_COMMAND_REFERENCES_RESULT: ${{ needs.docs-command-references.result }}
           SHELLCHECK_RESULT: ${{ needs.shellcheck.result }}
         run: |
           set -euo pipefail
           for result in \
             "$WORKFLOW_RESULT" "$RUFF_RESULT" "$TERRAFORM_FMT_RESULT" \
             "$TERRAFORM_VALIDATE_RESULT" "$TFLINT_RESULT" "$CHECKOV_RESULT" \
-            "$HELM_RESULT" "$YAML_RESULT" "$SHELLCHECK_RESULT"; do
+            "$HELM_RESULT" "$YAML_RESULT" "$DOCS_COMMAND_REFERENCES_RESULT" \
+            "$SHELLCHECK_RESULT"; do
             [[ "$result" == "success" || "$result" == "skipped" ]] || exit 1
           done
