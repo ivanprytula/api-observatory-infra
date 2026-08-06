@@ -46,3 +46,5 @@ docs/.plans/
 .venv/
 
 .local-dev/
+# Ansible local caches and dependency installs.
+.ansible/

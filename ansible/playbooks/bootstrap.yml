@@ -1,14 +1,14 @@
 ---
-# Full environment bootstrap: runs all four roles in dependency order.
+# Azure environment bootstrap using Vault-backed Azure inventory variables.
 #
 # Usage:
 #   ansible-playbook playbooks/bootstrap.yml -i inventory/hosts.yml \
-#     --ask-vault-pass --limit dev
+#     --ask-vault-pass --limit azure_dev
 #
 # For the first run on a remote host add: --ask-become-pass
 
 - name: 'Bootstrap api-observatory environment'
-  hosts: all
+  hosts: azure_dev
   gather_facts: true
 
   pre_tasks:
@@ -21,5 +21,4 @@
   roles:
     - role: 'common'
     - role: 'docker'
-    - role: 'secrets'
     - role: 'app'

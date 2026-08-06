@@ -6,11 +6,11 @@
 #
 # Usage (local):
 #   ansible-playbook playbooks/drift-check.yml -i inventory/hosts.yml \
-#     --ask-vault-pass --limit dev
+#     --limit dev
 #
 # Usage (remote):
 #   ansible-playbook playbooks/drift-check.yml -i inventory/hosts.yml \
-#     --ask-vault-pass --limit staging
+#     --limit staging
 
 - name: 'Config drift check — api-observatory'
   hosts: all

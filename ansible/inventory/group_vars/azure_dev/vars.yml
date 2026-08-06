@@ -1,6 +1,6 @@
 ---
-# Azure dev environment variables (non-sensitive).
-# Secrets are in vault.yml (ansible-vault encrypted).
+# Azure dev environment variables.
+# Only the database URL and JWT secret are supplied through Ansible Vault.
 
 azure_resource_group: 'api-observatory-rg'
 azure_vm_name: 'api-observatory-vm'
@@ -8,8 +8,27 @@ azure_location: 'polandcentral'
 acr_login_server: '{{ vault_acr_login_server }}'
 
 compose_env:
+  api_v1_bearer_token: ''
+  background_max_tracked_tasks: '500'
+  background_worker_count: '2'
+  background_worker_queue_size: '200'
+  background_workers_enabled: 'false'
   database_url: '{{ vault_database_url }}'
-  jwt_secret: '{{ vault_jwt_secret }}'
-  cache_url: 'redis://localhost:6379/0'
   environment: 'production'
-  log_level: 'info'
+  jwt_algorithm: 'HS256'
+  jwt_expiry_minutes: '60'
+  jwt_secret: '{{ vault_jwt_secret }}'
+  log_asyncio_level: 'WARNING'
+  log_httpx_level: 'WARNING'
+  cache_url: 'redis://localhost:6379/0'
+  cache_enabled: 'false'
+  log_level: 'INFO'
+  log_sqlalchemy_level: 'WARNING'
+  openai_api_key: ''
+  otel_enabled: 'false'
+  otel_endpoint: 'http://localhost:4317'
+  otel_service_name: 'api-observatory-ingestor'
+  sentry_enabled: 'false'
+  sentry_dsn: ''
+  sentry_traces_sample_rate: '0.1'
+  token_expiry_hours: '24'
