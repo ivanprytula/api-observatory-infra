@@ -1,0 +1,11 @@
+---
+# Bootstrap the private, SSM-operated AWS MVP host. It does not deploy an
+# image; app-owned delivery supplies reviewed immutable digests after CI succeeds.
+- name: Bootstrap AWS MVP Compose host
+  hosts: aws_dev
+  become: true
+
+  roles:
+    - common
+    - docker
+    - mvp

@@ -1,0 +1,6 @@
+---
+# AWS MVP host paths. Deployment renders runtime env files from Parameter
+# Store by the EC2 role; no secret values are kept in Ansible.
+mvp_app_dir: '/opt/api-observatory-mvp'
+mvp_runtime_parameter_path: '/api-observatory/aws-dev/runtime'
+mvp_runtime_dir: '{{ mvp_app_dir }}/.runtime'

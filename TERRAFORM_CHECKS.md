@@ -6,12 +6,12 @@ This document explains which Checkov security checks are skipped in `.pre-commit
 
 | Check ID | Rule | MVP Justification | Fix Timeline |
 | ---------- | ------ | ------------------- | -------------- |
-| CKV_AWS_130 | Disable public IP auto-assign | Stage 0 currently uses a public subnet for low-cost outbound access, but has no inbound rules and is operated through SSM | Move to private subnets/VPC endpoints before public or shared use |
-| CKV2_AWS_62 | Enable S3 event notifications | Stage 0 backup and one-day Ansible transfer buckets have no event-driven consumer | Add notifications with a concrete audit or automation consumer |
+| CKV_AWS_130 | Disable public IP auto-assign | MVP currently uses a public subnet for low-cost outbound access, but has no inbound rules and is operated through SSM | Move to private subnets/VPC endpoints before public or shared use |
+| CKV2_AWS_62 | Enable S3 event notifications | MVP backup and one-day Ansible transfer buckets have no event-driven consumer | Add notifications with a concrete audit or automation consumer |
 | CKV_AWS_21 | Enable S3 versioning | Backups are versioned; the one-day Ansible transfer bucket is intentionally ephemeral and unversioned | Revisit if transfer artifacts gain recovery value |
-| CKV_AWS_144 | Enable S3 cross-region replication | Single-region Stage 0 accepts regional loss and keeps restore evidence local to the target | Add after a measured cross-region recovery requirement |
-| CKV_AWS_136 | Encrypt ECR with a customer-managed KMS key | ECR uses AWS-managed AES-256 encryption; a customer key adds ~$1/key/month, grants, and policy without a Stage 0 compliance requirement | Before regulated or shared use |
-| CKV_AWS_145 | Encrypt S3 with a customer-managed KMS key | Both Stage 0 buckets use server-side AES-256 encryption; customer-key permissions would expand bootstrap and restore coupling | Before regulated or shared use |
+| CKV_AWS_144 | Enable S3 cross-region replication | Single-region MVP accepts regional loss and keeps restore evidence local to the target | Add after a measured cross-region recovery requirement |
+| CKV_AWS_136 | Encrypt ECR with a customer-managed KMS key | ECR uses AWS-managed AES-256 encryption; a customer key adds ~$1/key/month, grants, and policy without an MVP compliance requirement | Before regulated or shared use |
+| CKV_AWS_145 | Encrypt S3 with a customer-managed KMS key | Both MVP buckets use server-side AES-256 encryption; customer-key permissions would expand bootstrap and restore coupling | Before regulated or shared use |
 | CKV2_AWS_11 | Enable VPC Flow Logs | Scoped inline skip on the LocalStack `aws-sandbox` VPC only (`#checkov:skip`); `aws-dev` has flow logs | Remove the inline skip if sandbox becomes a live or shared environment |
 | CKV_AZURE_50 | No VM Extensions | Needed for monitoring agents in dev; mitigated by NSG rules | Post-MVP (managed) |
 | CKV_AZURE_43 | Storage naming convention | Current names valid; low-risk | N/A |
@@ -32,7 +32,7 @@ Checks removed from the global skip list. Remaining skips are listed in the tabl
 | Check ID | What changed |
 | ---------- | ------------- |
 | CKV2_AWS_12 | Default SG now defined explicitly (`aws_default_security_group.main`) with no rules (deny-all) in both `aws-dev` and `aws-sandbox` |
-| CKV_AWS_18 | Both Stage 0 buckets now have `aws_s3_bucket_logging` (backups self-logs to `logs/`, transfer logs to `logs/ansible/` in backups); a bucket policy grants `logging.s3.amazonaws.com` `PutObject`, and a lifecycle rule expires `logs/` after 7 days |
+| CKV_AWS_18 | Both MVP buckets now have `aws_s3_bucket_logging` (backups self-logs to `logs/`, transfer logs to `logs/ansible/` in backups); a bucket policy grants `logging.s3.amazonaws.com` `PutObject`, and a lifecycle rule expires `logs/` after 7 days |
 | CKV2_AWS_5 | Removed the unattached `aws_security_group.app` from the LocalStack `aws-sandbox` (no instance there; LocalStack only supports the default SG); its `security_group_id` output and `admin_cidr` variable were dropped with it |
 | CKV2_AWS_11 | `aws-dev` already had flow logs; the sandbox-only gap is now a scoped inline `#checkov:skip` on the LocalStack VPC instead of a global skip |
 

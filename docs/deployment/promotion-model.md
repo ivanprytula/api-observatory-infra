@@ -1,40 +1,17 @@
-# Promotion model
+# Application Environment Promotion Model
 
-This repository uses a simple, explicit promotion model for application releases.
+The application repository owns release promotion because it owns the workload and its operability.
+The platform repository supplies the same secure capabilities to each approved environment.
 
-## Lanes
+| Environment | Release decision | Deployment behavior |
+| --- | --- | --- |
+| `aws-dev` | Review and merge the app-owned lock PR | Automatically deploy the merged lock when the app gate is enabled |
+| `aws-qa-stage` | Automated acceptance promotes exact dev digests | Deferred until an environment and acceptance contract exist |
+| `aws-prod` | Protected environment approval with no self-review | Deferred until a production ownership and recovery contract exist |
 
-The promotion lanes are:
+No image is rebuilt between environments. Optional profile changes are a separate app PR, while image
+promotion preserves the profiles already merged into app `main`. The current MVP has only `aws-dev`;
+do not create unused environment workflows in advance.
 
-- `dev`: the active deployment lane for the current AWS Stage 0 target.
-- `stage`: reserved for the next explicit environment once a reviewed deployment path exists.
-- `prod-like`: reserved for a higher-trust operational environment after the stage lane is exercised.
-
-## Concrete targets
-
-The current implementation keeps the concrete environment name as `aws-dev` and the logical lane as `dev`.
-This avoids a larger rename in the existing Terraform, Ansible, and workflow wiring while the platform
-remains on a single active AWS target.
-
-Future environments should keep the same lane model and use concrete target names such as:
-
-- `aws-dev`
-- `aws-stage`
-- `aws-prod-like`
-
-## Contract
-
-1. The application repository publishes immutable images and machine-readable release metadata.
-2. The publisher applies the infra-owned promotion script to current infra `main` and opens or
-   updates one bot-owned pull request for the target. Only the current app `main` tip may replace its
-   candidate.
-3. A human reviews and merges the exact image-lock change; this merge is the deployment approval.
-4. A green infra `main` CI run applies that merged desired state to the selected target. Manual
-   dispatch can only replay the desired state already committed on `main`.
-5. The current implementation only accepts the `dev` lane for the `aws-dev` target.
-
-Automated image promotion preserves `enabled_profiles` from infra `main`. Profile selection is an
-infrastructure/runtime decision and changes through a separate reviewed PR.
-
-This keeps the promotion path simple while preserving room for later stage and prod-like environments
-without changing the underlying release contract.
+The platform side must expose the matching OIDC role, SSM target, Parameter Store path, and MVP
+platform contract before application delivery is enabled.

@@ -6,4 +6,4 @@ ansible_aws_ssm_region: "{{ aws_region }}"
 docker_registry: "{{ ecr_registry }}"
 ecr_registry: "ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com"
 
-# Stage 0 uses immutable image digests selected by infra desired state and local Compose PostgreSQL containers.
+# MVP uses immutable image digests selected by app desired state and local Compose PostgreSQL containers.

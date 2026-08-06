@@ -147,7 +147,7 @@ resource "aws_instance" "app" {
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.app.id]
-  iam_instance_profile   = aws_iam_instance_profile.stage0.name
+  iam_instance_profile   = aws_iam_instance_profile.mvp.name
   monitoring             = true
   ebs_optimized          = true
 
@@ -290,18 +290,18 @@ resource "aws_kms_alias" "main" {
   target_key_id = aws_kms_key.main.id
 }
 
-# ─── Stage 0 delivery identity and registry ─────────────────────────────────
+# ─── MVP delivery identity and registry ─────────────────────────────────────
 
 locals {
-  stage0_services = toset(["ingestor", "inference", "dashboard"])
+  mvp_services = toset(["ingestor", "inference", "dashboard"])
   github_oidc_provider_arn = coalesce(
     var.github_oidc_provider_arn,
     try(aws_iam_openid_connect_provider.github_actions[0].arn, null),
   )
 }
 
-resource "aws_ecr_repository" "stage0" {
-  for_each = local.stage0_services
+resource "aws_ecr_repository" "mvp" {
+  for_each = local.mvp_services
 
   name                 = "api-observatory/${each.value}"
   image_tag_mutability = "IMMUTABLE"
@@ -315,14 +315,14 @@ resource "aws_ecr_repository" "stage0" {
   }
 }
 
-resource "aws_ecr_lifecycle_policy" "stage0" {
-  for_each = aws_ecr_repository.stage0
+resource "aws_ecr_lifecycle_policy" "mvp" {
+  for_each = aws_ecr_repository.mvp
 
   repository = each.value.name
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Retain the latest 20 immutable Stage 0 candidate images."
+      description  = "Retain the latest 20 immutable MVP candidate images."
       selection = {
         tagStatus     = "tagged"
         tagPrefixList = ["tree-"]
@@ -376,7 +376,7 @@ data "aws_iam_policy_document" "github_actions_image_publish" {
     sid       = "PushImmutableImages"
     effect    = "Allow"
     actions   = ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:DescribeImages", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart"]
-    resources = [for repository in aws_ecr_repository.stage0 : repository.arn]
+    resources = [for repository in aws_ecr_repository.mvp : repository.arn]
   }
 
   statement {
@@ -394,7 +394,7 @@ resource "aws_iam_role_policy" "github_actions_image_publish" {
   policy = data.aws_iam_policy_document.github_actions_image_publish.json
 }
 
-data "aws_iam_policy_document" "github_actions_infra_deploy_assume" {
+data "aws_iam_policy_document" "github_actions_app_deploy_assume" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -410,21 +410,21 @@ data "aws_iam_policy_document" "github_actions_infra_deploy_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.infra_github_repository}:environment:aws-dev"]
+      values   = ["repo:${var.app_github_repository}:environment:aws-dev"]
     }
   }
 }
 
-resource "aws_iam_role" "github_actions_infra_deploy" {
-  name               = "${var.project}-github-actions-infra-deploy"
-  assume_role_policy = data.aws_iam_policy_document.github_actions_infra_deploy_assume.json
+resource "aws_iam_role" "github_actions_app_deploy" {
+  name               = "${var.project}-github-actions-app-deploy"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_app_deploy_assume.json
 }
 
-data "aws_iam_policy_document" "github_actions_infra_deploy" {
+data "aws_iam_policy_document" "github_actions_app_deploy" {
   statement {
     effect    = "Allow"
     actions   = ["ecr:DescribeImages"]
-    resources = [for repository in aws_ecr_repository.stage0 : repository.arn]
+    resources = [for repository in aws_ecr_repository.mvp : repository.arn]
   }
   statement {
     effect  = "Allow"
@@ -441,14 +441,14 @@ data "aws_iam_policy_document" "github_actions_infra_deploy" {
   }
 }
 
-resource "aws_iam_role_policy" "github_actions_infra_deploy" {
-  name   = "${var.project}-github-actions-infra-deploy"
-  role   = aws_iam_role.github_actions_infra_deploy.id
-  policy = data.aws_iam_policy_document.github_actions_infra_deploy.json
+resource "aws_iam_role_policy" "github_actions_app_deploy" {
+  name   = "${var.project}-github-actions-app-deploy"
+  role   = aws_iam_role.github_actions_app_deploy.id
+  policy = data.aws_iam_policy_document.github_actions_app_deploy.json
 }
 
-resource "aws_iam_role" "stage0_instance" {
-  name = "${var.project}-stage0-instance"
+resource "aws_iam_role" "mvp_instance" {
+  name = "${var.project}-mvp-instance"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -459,63 +459,63 @@ resource "aws_iam_role" "stage0_instance" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "stage0_ssm" {
-  role       = aws_iam_role.stage0_instance.name
+resource "aws_iam_role_policy_attachment" "mvp_ssm" {
+  role       = aws_iam_role.mvp_instance.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy_attachment" "stage0_ecr_pull" {
-  role       = aws_iam_role.stage0_instance.name
+resource "aws_iam_role_policy_attachment" "mvp_ecr_pull" {
+  role       = aws_iam_role.mvp_instance.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-data "aws_iam_policy_document" "stage0_runtime_parameters" {
+data "aws_iam_policy_document" "mvp_runtime_parameters" {
   statement {
     effect    = "Allow"
     actions   = ["ssm:GetParameters", "ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.stage0_runtime_parameter_path}/*"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.mvp_runtime_parameter_path}/*"]
   }
 }
 
-resource "aws_iam_role_policy" "stage0_runtime_parameters" {
-  name   = "${var.project}-stage0-runtime-parameters"
-  role   = aws_iam_role.stage0_instance.id
-  policy = data.aws_iam_policy_document.stage0_runtime_parameters.json
+resource "aws_iam_role_policy" "mvp_runtime_parameters" {
+  name   = "${var.project}-mvp-runtime-parameters"
+  role   = aws_iam_role.mvp_instance.id
+  policy = data.aws_iam_policy_document.mvp_runtime_parameters.json
 }
 
-resource "aws_iam_instance_profile" "stage0" {
-  name = "${var.project}-stage0"
-  role = aws_iam_role.stage0_instance.name
+resource "aws_iam_instance_profile" "mvp" {
+  name = "${var.project}-mvp"
+  role = aws_iam_role.mvp_instance.name
 }
 
-resource "aws_s3_bucket" "stage0_backups" {
-  bucket_prefix = "${var.project}-stage0-backups-"
+resource "aws_s3_bucket" "mvp_backups" {
+  bucket_prefix = "${var.project}-mvp-backups-"
 }
 
 # The Ansible SSM connection plugin transfers its module files through this
 # bucket. It is separate from retained backups and intentionally unversioned so
 # an interrupted controller run cannot retain module payloads indefinitely.
-resource "aws_s3_bucket" "stage0_ansible_transfer" {
-  bucket_prefix = "${var.project}-stage0-ansible-"
+resource "aws_s3_bucket" "mvp_ansible_transfer" {
+  bucket_prefix = "${var.project}-mvp-ansible-"
 }
 
-resource "aws_s3_bucket_public_access_block" "stage0_ansible_transfer" {
-  bucket                  = aws_s3_bucket.stage0_ansible_transfer.id
+resource "aws_s3_bucket_public_access_block" "mvp_ansible_transfer" {
+  bucket                  = aws_s3_bucket.mvp_ansible_transfer.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "stage0_ansible_transfer" {
-  bucket = aws_s3_bucket.stage0_ansible_transfer.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "mvp_ansible_transfer" {
+  bucket = aws_s3_bucket.mvp_ansible_transfer.id
   rule {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "stage0_ansible_transfer" {
-  bucket = aws_s3_bucket.stage0_ansible_transfer.id
+resource "aws_s3_bucket_lifecycle_configuration" "mvp_ansible_transfer" {
+  bucket = aws_s3_bucket.mvp_ansible_transfer.id
 
   rule {
     id     = "expire-ansible-ssm-transfer-files"
@@ -528,43 +528,43 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_ansible_transfer" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "stage0_backups" {
-  bucket                  = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_public_access_block" "mvp_backups" {
+  bucket                  = aws_s3_bucket.mvp_backups.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "stage0_backups" {
-  bucket = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "mvp_backups" {
+  bucket = aws_s3_bucket.mvp_backups.id
   rule {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
 
-resource "aws_s3_bucket_logging" "stage0_backups" {
-  bucket        = aws_s3_bucket.stage0_backups.id
-  target_bucket = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_logging" "mvp_backups" {
+  bucket        = aws_s3_bucket.mvp_backups.id
+  target_bucket = aws_s3_bucket.mvp_backups.id
   target_prefix = "logs/"
 }
 
-resource "aws_s3_bucket_logging" "stage0_ansible_transfer" {
-  bucket        = aws_s3_bucket.stage0_ansible_transfer.id
-  target_bucket = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_logging" "mvp_ansible_transfer" {
+  bucket        = aws_s3_bucket.mvp_ansible_transfer.id
+  target_bucket = aws_s3_bucket.mvp_backups.id
   target_prefix = "logs/ansible/"
 }
 
-resource "aws_s3_bucket_versioning" "stage0_backups" {
-  bucket = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_versioning" "mvp_backups" {
+  bucket = aws_s3_bucket.mvp_backups.id
   versioning_configuration { status = "Enabled" }
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
-  bucket = aws_s3_bucket.stage0_backups.id
+resource "aws_s3_bucket_lifecycle_configuration" "mvp_backups" {
+  bucket = aws_s3_bucket.mvp_backups.id
 
   rule {
-    id     = "abort-incomplete-stage0-backup-uploads"
+    id     = "abort-incomplete-mvp-backup-uploads"
     status = "Enabled"
 
     filter {}
@@ -573,7 +573,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
   }
 
   rule {
-    id     = "retain-stage0-postgres-backups"
+    id     = "retain-mvp-postgres-backups"
     status = "Enabled"
 
     filter { prefix = "postgres/" }
@@ -583,7 +583,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
   }
 
   rule {
-    id     = "expire-stage0-access-logs"
+    id     = "expire-mvp-access-logs"
     status = "Enabled"
 
     filter { prefix = "logs/" }
@@ -592,7 +592,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "stage0_backups" {
   }
 }
 
-data "aws_iam_policy_document" "stage0_backups_access_logs" {
+data "aws_iam_policy_document" "mvp_backups_access_logs" {
   statement {
     sid    = "AllowS3AccessLogDelivery"
     effect = "Allow"
@@ -604,7 +604,7 @@ data "aws_iam_policy_document" "stage0_backups_access_logs" {
 
     actions = ["s3:PutObject"]
 
-    resources = ["${aws_s3_bucket.stage0_backups.arn}/logs/*"]
+    resources = ["${aws_s3_bucket.mvp_backups.arn}/logs/*"]
 
     condition {
       test     = "StringEquals"
@@ -614,26 +614,26 @@ data "aws_iam_policy_document" "stage0_backups_access_logs" {
   }
 }
 
-resource "aws_s3_bucket_policy" "stage0_backups_access_logs" {
-  bucket = aws_s3_bucket.stage0_backups.id
-  policy = data.aws_iam_policy_document.stage0_backups_access_logs.json
+resource "aws_s3_bucket_policy" "mvp_backups_access_logs" {
+  bucket = aws_s3_bucket.mvp_backups.id
+  policy = data.aws_iam_policy_document.mvp_backups_access_logs.json
 }
 
-data "aws_iam_policy_document" "stage0_backups" {
+data "aws_iam_policy_document" "mvp_backups" {
   statement {
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:GetObject"]
-    resources = ["${aws_s3_bucket.stage0_backups.arn}/postgres/*"]
+    resources = ["${aws_s3_bucket.mvp_backups.arn}/postgres/*"]
   }
   statement {
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.stage0_backups.arn]
+    resources = [aws_s3_bucket.mvp_backups.arn]
   }
 }
 
-resource "aws_iam_role_policy" "stage0_backups" {
-  name   = "${var.project}-stage0-backups"
-  role   = aws_iam_role.stage0_instance.id
-  policy = data.aws_iam_policy_document.stage0_backups.json
+resource "aws_iam_role_policy" "mvp_backups" {
+  name   = "${var.project}-mvp-backups"
+  role   = aws_iam_role.mvp_instance.id
+  policy = data.aws_iam_policy_document.mvp_backups.json
 }

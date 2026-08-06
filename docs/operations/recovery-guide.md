@@ -2,7 +2,7 @@
 
 Use this guide to select a bounded response path and the owning source. It does not claim that a
 production environment or every recovery script has been exercised against the current
-three-service Stage 0 contract.
+three-service MVP contract.
 
 Restore, replay, restart, and chaos operations can destroy or duplicate data or interrupt services.
 Inspect exact targets, preserve evidence, and obtain approval before destructive or live-cloud use.
@@ -33,7 +33,7 @@ Infra dashboards, alerts, and collection boundaries live in
 ## Legacy Backup and Restore Scripts
 
 The following scripts are legacy local/Azure-era material and are not supported `Justfile` workflows
-or verified Stage 0 recovery proof. Before use, inspect the configured database name, host, artifact
+or verified MVP recovery proof. Before use, inspect the configured database name, host, artifact
 format, storage destination, credentials, and cleanup behavior. Never point a rehearsal at an
 unverified remote or production target.
 
@@ -80,7 +80,7 @@ size/rate, and verify lag plus application outcomes after replay.
 ## Fault Exercises
 
 [`scripts/chaos.sh`](../../scripts/chaos.sh) is an infrastructure experiment with legacy container
-targets; it is not a supported `Justfile` workflow or current Stage 0 proof. It stops containers,
+targets; it is not a supported `Justfile` workflow or current MVP proof. It stops containers,
 alters container network settings, or changes container memory limits depending on the scenario.
 Use it only against an explicit disposable local target after approval:
 

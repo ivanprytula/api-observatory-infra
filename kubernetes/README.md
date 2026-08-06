@@ -6,7 +6,7 @@ kept as design and validation material for a later, evidence-triggered stage.
 They are not a supported local deployment workflow and must not be presented as
 runtime or production evidence.
 
-The current supported runtime is app-owned local Compose. AWS Stage 0 is the
+The current supported runtime is app-owned local Compose. AWS MVP is the
 next portfolio direction and remains a configuration/decision claim until an
 approved live deployment is verified. See the repository [README](../README.md)
 and [evolution plan](../docs/architecture/evolution-plan.md).

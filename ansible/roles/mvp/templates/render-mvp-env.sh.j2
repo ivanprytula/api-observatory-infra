@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -o errexit -o pipefail -o nounset -o errtrace
 
-readonly RUNTIME_DIR='{{ stage0_runtime_dir }}'
-readonly PARAMETER_PATH='{{ stage0_runtime_parameter_path }}'
+readonly RUNTIME_DIR='{{ mvp_runtime_dir }}'
+readonly PARAMETER_PATH='{{ mvp_runtime_parameter_path }}'
+temporary=''
 
 error() { echo "[ERROR] $*" >&2; exit 1; }
 require_command() { command -v "$1" >/dev/null 2>&1 || error "Required command not found: $1"; }
-temporary=""
 
 cleanup() {
   [[ -z "${temporary}" ]] || rm -f "${temporary}"
 }
 
-render_service_env() {
-  local service="$1"
-  local required="${2:-required}"
-  local destination="${RUNTIME_DIR}/${service}.env"
-  temporary="$(mktemp "${RUNTIME_DIR}/.${service}.env.XXXXXX")"
+render_group_env() {
+  local group="$1"
+  local destination="${RUNTIME_DIR}/${group}.env"
+  [[ "${group}" =~ ^[a-z][a-z0-9-]*$ ]] || error "Invalid runtime parameter group: ${group}"
+  temporary="$(mktemp "${RUNTIME_DIR}/.${group}.env.XXXXXX")"
 
   aws ssm get-parameters-by-path \
-    --path "${PARAMETER_PATH}/${service}" \
+    --path "${PARAMETER_PATH}/${group}" \
     --recursive \
     --with-decryption \
     --output json \
@@ -29,30 +29,22 @@ render_service_env() {
         | if ($name | test("^[A-Z][A-Z0-9_]*$")) then "\($name)=\(.Value)" else empty end
       ' > "${temporary}"
 
-  if [[ ! -s "${temporary}" ]]; then
-    rm -f "${temporary}"
-    if [[ "${required}" == "optional" ]]; then
-      return 0
-    fi
-    error "No valid parameters found for ${service}."
-  fi
+  [[ -s "${temporary}" ]] || error "No valid parameters found for ${group}."
   chown root:root "${temporary}"
   chmod 0600 "${temporary}"
   mv "${temporary}" "${destination}"
-  temporary=""
+  temporary=''
 }
 
 main() {
+  (($# > 0)) || error "Usage: api-observatory-mvp-render-env <group>..."
   require_command aws
   require_command jq
   install -d -m 0700 -o root -g root "${RUNTIME_DIR}"
-  render_service_env ingestor-db
-  render_service_env ingestor
-  render_service_env dashboard
-  render_service_env backup
-  render_service_env inference-db optional
-  render_service_env inference optional
-  render_service_env cache optional
+  local group
+  for group in "$@"; do
+    render_group_env "${group}"
+  done
 }
 
 trap 'error "Runtime environment rendering failed at line ${LINENO}"' ERR

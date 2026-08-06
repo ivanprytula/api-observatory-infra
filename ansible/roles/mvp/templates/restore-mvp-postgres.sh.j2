@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -o errexit -o pipefail -o nounset -o errtrace
 
-readonly APP_DIR='{{ stage0_app_dir }}'
-readonly RUNTIME_DIR='{{ stage0_runtime_dir }}'
+readonly APP_DIR='{{ mvp_app_dir }}'
+readonly RUNTIME_DIR='{{ mvp_runtime_dir }}'
 readonly COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 readonly DEPLOYMENT_ENV_FILE="${RUNTIME_DIR}/deployment.env"
 readonly BACKUP_ENV_FILE="${RUNTIME_DIR}/backup.env"
@@ -11,20 +11,20 @@ error() { echo "[ERROR] $*" >&2; exit 1; }
 require_command() { command -v "$1" >/dev/null 2>&1 || error "Required command not found: $1"; }
 
 main() {
-  local backup_key="${1:?Usage: restore-stage0-postgres <postgres/key.dump> [disposable_db_name]}"
-  local target_database="${2:-stage0_restore_$(date -u +%Y%m%d%H%M%S)}"
+  local backup_key="${1:?Usage: api-observatory-mvp-restore-postgres <postgres/key.dump> [disposable_db_name]}"
+  local target_database="${2:-mvp_restore_$(date -u +%Y%m%d%H%M%S)}"
   [[ "${backup_key}" == postgres/* && "${backup_key}" != *".."* ]] || error "Backup key must be under postgres/."
   [[ "${target_database}" =~ ^[a-zA-Z][a-zA-Z0-9_]{0,62}$ ]] || error "Invalid disposable database name."
   require_command aws
   require_command docker
-  [[ -r "${DEPLOYMENT_ENV_FILE}" ]] || error "Run an approved infra desired-state deployment before restoring a backup."
+  [[ -r "${DEPLOYMENT_ENV_FILE}" ]] || error "Run an approved app desired-state deployment before restoring a backup."
   [[ -r "${BACKUP_ENV_FILE}" ]] || error "Missing ${BACKUP_ENV_FILE}."
   # shellcheck disable=SC1090
   source "${BACKUP_ENV_FILE}"
   : "${AWS_S3_BUCKET:?backup.env must define AWS_S3_BUCKET}"
 
   local backup_file
-  backup_file="$(mktemp /tmp/api-observatory-stage0-restore-XXXXXX.dump)"
+  backup_file="$(mktemp /tmp/api-observatory-mvp-restore-XXXXXX.dump)"
   trap 'rm -f "${backup_file}"' EXIT
   aws s3 cp "s3://${AWS_S3_BUCKET}/${backup_key}" "${backup_file}"
   docker compose --env-file "${DEPLOYMENT_ENV_FILE}" -f "${COMPOSE_FILE}" exec -T ingestor-db \

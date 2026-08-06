@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -o errexit -o pipefail -o nounset -o errtrace
 
-readonly APP_DIR='{{ stage0_app_dir }}'
-readonly RUNTIME_DIR='{{ stage0_runtime_dir }}'
+readonly APP_DIR='{{ mvp_app_dir }}'
+readonly RUNTIME_DIR='{{ mvp_runtime_dir }}'
 readonly COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 readonly DEPLOYMENT_ENV_FILE="${RUNTIME_DIR}/deployment.env"
 readonly BACKUP_ENV_FILE="${RUNTIME_DIR}/backup.env"
@@ -13,14 +13,14 @@ require_command() { command -v "$1" >/dev/null 2>&1 || error "Required command n
 main() {
   require_command aws
   require_command docker
-  [[ -r "${DEPLOYMENT_ENV_FILE}" ]] || error "Run an approved infra desired-state deployment before creating a backup."
+  [[ -r "${DEPLOYMENT_ENV_FILE}" ]] || error "Run an approved app desired-state deployment before creating a backup."
   [[ -r "${BACKUP_ENV_FILE}" ]] || error "Missing ${BACKUP_ENV_FILE}."
   # shellcheck disable=SC1090
   source "${BACKUP_ENV_FILE}"
   : "${AWS_S3_BUCKET:?backup.env must define AWS_S3_BUCKET}"
 
   local backup_file
-  backup_file="$(mktemp /tmp/api-observatory-stage0-XXXXXX.dump)"
+  backup_file="$(mktemp /tmp/api-observatory-mvp-XXXXXX.dump)"
   trap 'rm -f "${backup_file}"' EXIT
   docker compose --env-file "${DEPLOYMENT_ENV_FILE}" -f "${COMPOSE_FILE}" \
     exec -T ingestor-db pg_dump -U postgres --format=custom --no-owner --no-acl api_obs_ingestor \

@@ -1,9 +1,9 @@
 # Infrastructure Evolution — VM to Managed Platform
 
-> **Status:** AWS Stage 0 is a planned, statically validated direction; no live deployment is
+> **Status:** AWS MVP is a planned, statically validated direction; no live deployment is
 > claimed.
 
-The app contract publishes three HTTP images: ingestor, inference, and dashboard. The default Stage 0
+The app contract publishes three HTTP images: ingestor, inference, and dashboard. The default MVP
 runtime starts ingestor, dashboard, and the ingestor PostgreSQL database; inference and its database
 are an opt-in profile on the same EC2 Docker Compose platform. AWS is the primary portfolio direction.
 Azure assets remain secondary/reference material; local cloud emulators remain app-owned labs.

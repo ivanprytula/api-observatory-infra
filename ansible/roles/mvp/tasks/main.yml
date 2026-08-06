@@ -1,0 +1,62 @@
+- name: 'Install MVP host dependencies'
+  ansible.builtin.apt:
+    name:
+      - 'awscli'
+    state: present
+    update_cache: true
+  become: true
+
+- name: 'Create MVP application directory'
+  ansible.builtin.file:
+    group: 'root'
+    mode: '0750'
+    owner: 'root'
+    path: '{{ mvp_app_dir }}'
+    state: directory
+  become: true
+
+- name: 'Create MVP runtime directory'
+  ansible.builtin.file:
+    group: 'root'
+    mode: '0700'
+    owner: 'root'
+    path: '{{ mvp_runtime_dir }}'
+    state: directory
+  become: true
+
+- name: 'Install MVP platform contract version marker'
+  ansible.builtin.copy:
+    content: |
+      1
+    dest: '{{ mvp_app_dir }}/.platform-contract-version'
+    group: 'root'
+    mode: '0644'
+    owner: 'root'
+  become: true
+
+- name: 'Install group-driven Parameter Store runtime renderer'
+  ansible.builtin.template:
+    dest: '/usr/local/sbin/api-observatory-mvp-render-env'
+    group: 'root'
+    mode: '0700'
+    owner: 'root'
+    src: 'render-mvp-env.sh.j2'
+  become: true
+
+- name: 'Install MVP PostgreSQL backup command'
+  ansible.builtin.template:
+    dest: '/usr/local/sbin/api-observatory-mvp-backup-postgres'
+    group: 'root'
+    mode: '0700'
+    owner: 'root'
+    src: 'backup-mvp-postgres.sh.j2'
+  become: true
+
+- name: 'Install MVP PostgreSQL disposable restore command'
+  ansible.builtin.template:
+    dest: '/usr/local/sbin/api-observatory-mvp-restore-postgres'
+    group: 'root'
+    mode: '0700'
+    owner: 'root'
+    src: 'restore-mvp-postgres.sh.j2'
+  become: true

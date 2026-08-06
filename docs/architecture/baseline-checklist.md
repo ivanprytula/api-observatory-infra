@@ -4,7 +4,7 @@ This checklist records durable infrastructure invariants. It is not a completion
 counts as exercised only when the corresponding validation or deployment evidence has been
 retained. The [evolution plan](evolution-plan.md) owns adoption triggers.
 
-## AWS Stage 0
+## AWS MVP
 
 | Invariant | Primary evidence |
 | --- | --- |
@@ -25,12 +25,12 @@ known boundary, not proof that the underlying control exists.
 | --- | --- |
 | Application images and environment interfaces follow the app-owned contract | [App deployment contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md) |
 | Cloud credentials are short-lived through GitHub OIDC; EC2 receives runtime values through its SSM role, not GitHub | [CI/CD guide](../ci-cd/ci-cd.md) |
-| Image publication can update only the promotion PR; deployment reads only a green lock merged to `main` | [Delivery workflow contract tests](../../tests/test_delivery_workflow_contract.py) |
-| Rollout, health verification, and rollback are explicit steps | [Deployment guide](../deployment/deployment-guide.md) |
+| The app deployment role is restricted to the app `aws-dev` environment and SSM/ECR inspection | [MVP platform contract tests](../../tests/test_mvp_platform_contract.py) |
+| Bootstrap supplies the versioned host path and group-driven runtime renderer | [Deployment guide](../deployment/deployment-guide.md) |
 | Kubernetes examples run non-root, drop capabilities, and avoid committed real secrets | [`kubernetes/`](../../kubernetes/) |
 
 Kubernetes and Azure assets are secondary/reference evidence. They do not expand the current AWS
-Stage 0 deployment claim without a measured trigger and fresh validation.
+MVP deployment claim without a measured trigger and fresh validation.
 
 ## Operations and Recovery
 

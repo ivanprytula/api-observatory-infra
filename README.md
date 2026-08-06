@@ -20,7 +20,7 @@ For the shared onboarding, task, PR, and release handoff checklist, use the app 
 terraform/
   environments/
     azure-dev/           Azure cloud (B1s free tier)
-    aws-dev/             AWS Stage 0 environment
+    aws-dev/             AWS MVP platform environment
 ansible/                 Playbooks, inventory (multi-cloud), roles
 kubernetes/              K8s manifests, Helm charts, overlays (cloud-neutral)
 monitoring/              Prometheus, Alertmanager, Grafana (cloud-neutral)
@@ -33,10 +33,10 @@ Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're 
 
 ## Working with the Repository
 
-The [`Justfile`](Justfile) owns supported named workflows: image promotion, Ansible linting, Helm
-linting, and non-mutating Stage 0/Kubernetes scope help. Native Terraform and Ansible commands are
+The [`Justfile`](Justfile) owns supported named workflows: Ansible linting, Helm linting, and
+non-mutating MVP/Kubernetes scope help. Native Terraform and Ansible commands are
 appropriate for explicit operator work. Follow [Contributing](CONTRIBUTING.md) for the task-branch and
-pull-request lifecycle. Run `just help-aws-stage0` for the non-mutating operator sequence. Start with
+pull-request lifecycle. Run `just help-aws-mvp` for the non-mutating operator sequence. Start with
 static validation and a reviewed plan. Any apply, deployment, restore, chaos action, or teardown requires
 explicit target review and approval.
 
@@ -51,7 +51,7 @@ you are deliberately dropping support for an older runtime.
 
 ## Contract with App Repo
 
-| Contract | AWS primary Stage 0 | Azure secondary/reference |
+| Contract | AWS primary MVP | Azure secondary/reference |
 | --- | --- | --- |
 | Image registry | ECR | ACR |
 | Published images | ingestor `:8000`, inference `:8001`, dashboard `:8501` | Same application contract |
@@ -62,22 +62,19 @@ you are deliberately dropping support for an older runtime.
 
 ## Platform Direction
 
-Stage 0 keeps the selected application images and PostgreSQL containers on one EC2 Docker Compose host,
-with ECR, Parameter Store, and retained S3 backups as its AWS control plane. This repository holds
-the AWS desired-state image lock and deployment topology. The host is operated
-privately through Systems Manager; public ingress, DNS, and TLS are deferred. This is a
+MVP provides one EC2 Docker Compose host with ECR, Parameter Store, and retained S3 backups as its
+platform control plane. The application repository holds the AWS desired-state image lock and
+workload topology. The host is operated privately through Systems Manager; public ingress, DNS, and
+TLS are deferred. This is a
 planned/configured path, not a completed deployment. ECS/Fargate and managed databases require
 measured operational pressure; Kubernetes remains a later evidence-triggered stage.
 
-AWS delivery remains disabled by default. A real deployment requires an approved Terraform plan,
-published CI-green images, reviewed runtime SecureString values, and a non-placeholder
-`environments/aws-dev/images.lock.json`. The [deployment guide](docs/deployment/deployment-guide.md)
-documents the explicit Terraform and Ansible bootstrap plus the reviewed promotion-PR deployment flow, while the
-[promotion model](docs/deployment/promotion-model.md) defines the current dev/stage/prod-like lane
-structure and explains why the live target remains `aws-dev` for now. The
-[CI/CD configuration guide](docs/deployment/ci-cd-guide.md) maps the GitHub Actions events,
-environments, variables/secrets, and OIDC wiring. This README stays high-level so those deployment
-docs remain the single source for current workflow details.
+AWS gates remain disabled by default. A real deployment requires an approved Terraform plan,
+reviewed runtime SecureString values, app-managed immutable images, and a reviewed app lock. The
+[deployment guide](docs/deployment/deployment-guide.md) documents Terraform and Ansible bootstrap;
+the [CI/CD configuration guide](docs/deployment/ci-cd-guide.md) maps platform outputs and OIDC
+wiring. The application [delivery contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md)
+is the source for workload promotion and deployment.
 
 ## Prerequisites
 
@@ -89,7 +86,7 @@ Install only the row matching the work you will perform.
 | Application work or local Compose verification | Follow the app [Setup Guide](https://github.com/ivanprytula/api-observatory/blob/main/docs/04-setup/setup-guide.md); this repository does not duplicate its versions |
 | Terraform formatting, validation, and plan review | Terraform and TFLint |
 | Ansible playbook development and linting | `pipx`, full Ansible, `ansible-lint`, and collections from `ansible/requirements.yml` |
-| AWS Stage 0 bootstrap/deployment | AWS CLI, `session-manager-plugin`, Terraform, Ansible, `jq`, and S3-capable AWS credentials on the controller |
+| AWS MVP bootstrap | AWS CLI, `session-manager-plugin`, Terraform, Ansible, `jq`, and S3-capable AWS credentials on the controller |
 | Azure reference work | Azure CLI |
 | Kubernetes or emulator labs | Only when used: Docker, `kubectl`, Helm, k3d, and the relevant emulator |
 
@@ -102,7 +99,7 @@ ansible-galaxy collection install -r ansible/requirements.yml
 ```
 
 The AWS Session Manager plugin is a native AWS package, not a PyPI dependency. It is required by the
-`amazon.aws.aws_ssm` connection used by the Stage 0 Ansible playbooks. Keep AWS credentials in the
+`amazon.aws.aws_ssm` connection used by the MVP Ansible playbooks. Keep AWS credentials in the
 local credential store or short-lived federation; never put them in repository files. Pre-commit
 hooks run most remaining checks in isolated environments.
 
@@ -110,14 +107,14 @@ Always select the Terraform environment explicitly by working from its directory
 initialization, create the versioned, encrypted, private S3 state
 bucket. The backend uses S3-native lockfiles; DynamoDB locking is deprecated by Terraform. Then copy
 `terraform/environments/aws-dev/backend.s3.hcl.example` to the ignored
-`backend.s3.hcl` and fill it locally. Use the native commands below for AWS Stage 0. Initialization
+`backend.s3.hcl` and fill it locally. Use the native commands below for AWS MVP. Initialization
 configures that environment's backend; it is non-mutating to cloud resources, while `plan` is still a
 required review gate before any apply.
 
 ### Bootstrap the AWS State Backend
 
 Run these AWS CLI commands once after choosing the account and `eu-central-1` region. They create
-only the remote-state bucket; they do not provision the Stage 0 application infrastructure. The
+only the remote-state bucket; they do not provision the MVP platform. The
 account ID makes the globally unique bucket name deterministic for this account.
 
 ```bash
