@@ -5,7 +5,8 @@ collections:
   - name: 'ansible.posix'
     version: '>=1.5.0'
   - name: 'community.docker'
-    version: '>=3.0.0'
+    # docker_compose_v2 was added in community.docker 3.6.0.
+    version: '>=3.6.0'
   - name: 'community.general'
     version: '>=9.0.0'
   - name: 'azure.azcollection'

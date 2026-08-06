@@ -5,6 +5,9 @@
 # bootstrap. Kubernetes is Deferred/Post-MVP; its assets are not a supported
 # local deployment workflow.
 
+doctor:
+    bash scripts/doctor.sh
+
 help-aws-mvp:
     @echo "1. Create and configure the private S3 state backend from README.md."
     @echo "2. cd terraform/environments/aws-dev"

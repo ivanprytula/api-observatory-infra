@@ -1,6 +1,8 @@
 ---
 # Config drift check: asserts host state matches expected configuration.
 # All tasks use check mode (--check) or read-only operations; nothing is changed.
+# Install the required collections before parsing this playbook:
+#   ansible-galaxy collection install -r requirements.yml
 #
 # Usage (local):
 #   ansible-playbook playbooks/drift-check.yml -i inventory/hosts.yml \
