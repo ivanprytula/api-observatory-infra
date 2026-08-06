@@ -1,28 +1,12 @@
 name: Deploy AWS Stage 0 desired state
 
 on:
+  workflow_call:
   workflow_dispatch:
-    inputs:
-      promotion_target:
-        description: Promotion lane to deploy
-        required: true
-        default: dev
-        type: choice
-        options:
-          - dev
-          - stage
-          - prod-like
-      environment_name:
-        description: Concrete deployment target identifier
-        required: true
-        default: aws-dev
-        type: string
-  repository_dispatch:
-    types: [app-release-published]
 
 permissions:
   checks: read
-  contents: write
+  contents: read
   id-token: write
 
 concurrency:
@@ -38,8 +22,8 @@ jobs:
       vars.AWS_EC2_INSTANCE_ID_DEV != ''
     environment: aws-dev
     env:
-      PROMOTION_TARGET: ${{ github.event.inputs.promotion_target || github.event.client_payload.promotion_target || 'dev' }}
-      TARGET_ENVIRONMENT_NAME: ${{ github.event.inputs.environment_name || github.event.client_payload.environment_name || 'aws-dev' }}
+      PROMOTION_TARGET: dev
+      TARGET_ENVIRONMENT_NAME: aws-dev
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -80,43 +64,6 @@ jobs:
             exit 1
           }
 
-      - name: Promote published application release into the lock file
-        if: github.event_name == 'repository_dispatch'
-        env:
-          SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository }}
-          SOURCE_COMMIT_SHA: ${{ github.event.client_payload.source_commit_sha }}
-          SOURCE_TREE_SHA: ${{ github.event.client_payload.source_tree_sha }}
-          RELEASE_IMAGES: ${{ toJson(github.event.client_payload.images) }}
-        run: |
-          set -euo pipefail
-          metadata_path="${RUNNER_TEMP}/release-metadata.json"
-          jq -n \
-            --arg source_repository "$SOURCE_REPOSITORY" \
-            --arg source_commit_sha "$SOURCE_COMMIT_SHA" \
-            --arg source_tree_sha "$SOURCE_TREE_SHA" \
-            --argjson images "$RELEASE_IMAGES" \
-            '{
-              schema_version: 1,
-              source_repository: $source_repository,
-              source_commit_sha: $source_commit_sha,
-              source_tree_sha: $source_tree_sha,
-              images: $images
-            }' \
-            > "$metadata_path"
-          uv run python scripts/promote_stage0_images.py "$metadata_path" --lock "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
-
-      - name: Commit updated image lock
-        if: github.event_name == 'repository_dispatch'
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json"
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: promote app release ${{ github.event.client_payload.source_tree_sha }}"
-            git push
-          fi
-
       - id: app-ref
         name: Resolve locked application commit
         shell: bash
@@ -154,15 +101,15 @@ jobs:
               "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json" | awk '!seen[$0]++'
             printf 'ENABLED_PROFILES=%s\n' "$enabled_profiles"
           } | base64 -w 0)
-          for service in ingestor inference dashboard; do
-            repo=$(jq -r ".images.${service}.repository" "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
-            digest=$(jq -r ".images.${service}.digest" "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
+          while IFS= read -r image; do
+            repo=$(jq -r '.value.repository' <<< "$image")
+            digest=$(jq -r '.value.digest' <<< "$image")
             aws ecr describe-images \
               --repository-name "$repo" \
               --image-ids imageDigest="$digest" \
               --query 'imageDetails[0].imageTags' \
               --output text | grep -qx "tree-${tree_sha}"
-          done
+          done < <(jq -c '.images | to_entries[]' "environments/${TARGET_ENVIRONMENT_NAME}/images.lock.json")
           compose=$(base64 -w 0 deployment/aws-stage0/docker-compose.yml)
           prometheus=$(base64 -w 0 deployment/aws-stage0/prometheus.yml)
           rollout=$(base64 -w 0 deployment/aws-stage0/rollout.sh)

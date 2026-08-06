@@ -25,10 +25,16 @@ Future environments should keep the same lane model and use concrete target name
 ## Contract
 
 1. The application repository publishes immutable images and machine-readable release metadata.
-2. The infrastructure repository reviews the release metadata and promotes the selected image lock into
-   the target environment.
-3. The deployment workflow applies that desired state to the selected target.
-4. The current implementation only accepts the `dev` lane for the `aws-dev` target.
+2. The publisher applies the infra-owned promotion script to current infra `main` and opens or
+   updates one bot-owned pull request for the target. Only the current app `main` tip may replace its
+   candidate.
+3. A human reviews and merges the exact image-lock change; this merge is the deployment approval.
+4. A green infra `main` CI run applies that merged desired state to the selected target. Manual
+   dispatch can only replay the desired state already committed on `main`.
+5. The current implementation only accepts the `dev` lane for the `aws-dev` target.
+
+Automated image promotion preserves `enabled_profiles` from infra `main`. Profile selection is an
+infrastructure/runtime decision and changes through a separate reviewed PR.
 
 This keeps the promotion path simple while preserving room for later stage and prod-like environments
 without changing the underlying release contract.

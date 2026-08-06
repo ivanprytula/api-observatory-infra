@@ -25,6 +25,7 @@ known boundary, not proof that the underlying control exists.
 | --- | --- |
 | Application images and environment interfaces follow the app-owned contract | [App deployment contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md) |
 | Cloud credentials are short-lived through GitHub OIDC; EC2 receives runtime values through its SSM role, not GitHub | [CI/CD guide](../ci-cd/ci-cd.md) |
+| Image publication can update only the promotion PR; deployment reads only a green lock merged to `main` | [Delivery workflow contract tests](../../tests/test_delivery_workflow_contract.py) |
 | Rollout, health verification, and rollback are explicit steps | [Deployment guide](../deployment/deployment-guide.md) |
 | Kubernetes examples run non-root, drop capabilities, and avoid committed real secrets | [`kubernetes/`](../../kubernetes/) |
 

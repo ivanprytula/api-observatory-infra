@@ -29,13 +29,13 @@ git push -u origin HEAD
 gh pr create --base main --fill
 ```
 
-The maintainer policy is to merge only after `CI / Merge gate` succeeds and review conversations are
-resolved. GitHub does not currently enforce required checks or approvals, so verify that evidence
-manually before merging.
+Merge only after `CI / Merge gate` succeeds and review conversations are resolved. Before AWS
+delivery is enabled, configure `main` to require both the pull request and that stable check.
 
 ## Cloud Safety
 
 CI, contract validation, and a Terraform plan are static evidence only. Do not run Terraform apply,
 deployment, restore, chaos, or teardown from routine contribution steps. Each live or destructive
 operation requires an explicit target review and separate approval. Application image promotion
-changes `environments/aws-dev/images.lock.json` through its own reviewed infra pull request.
+changes `environments/aws-dev/images.lock.json` through its own reviewed infra pull request. Merging
+that green PR is the deployment approval; manual dispatch only replays current `main`.

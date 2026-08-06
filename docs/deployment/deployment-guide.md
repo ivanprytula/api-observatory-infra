@@ -106,25 +106,34 @@ MCP remains a local stdio process and is not deployed.
    URLs; it does not need an SSH key or inbound port 22.
 6. Create the required SecureString values outside Terraform and repository/workflow files. Bootstrap
    is deliberately secret-free; it only prepares Docker, protected directories, and helper commands.
-7. Download the app publisher's `release-metadata-<commit-SHA>` artifact and run
-   `just promote-images <artifact-path>`. Review the deterministic `images.lock.json` diff, including
-   its source commit, tree, digests, and optional profiles. Commit that desired state through a PR,
-   then manually dispatch the [AWS Stage 0 deployment workflow](../../.github/workflows/deploy-aws-stage0.yml)
-   to deploy that reviewed state.
-   The workflow renders runtime files on the host, copies the reviewed Compose assets, pulls only the
-   locked digests with the EC2 role, runs migrations, and executes readiness and authenticated smoke
-   checks.
+7. A deployable application change that passes the app `main` merge gate calls the reusable image
+   publisher. It checks out current infra `main`, runs this repository's promotion script, and opens
+   or updates `automation/promote-aws-dev`. Review the deterministic `images.lock.json` diff,
+   including its source commit, tree, and digests, then merge that green PR to approve deployment.
+   Optional profiles are preserved from infra `main` and change only through a separate infra PR.
+8. A green infra `main` CI run automatically calls the
+   [AWS Stage 0 deployment workflow](../../.github/workflows/deploy-aws-stage0.yml) when the merged
+   commit changes the `aws-dev` lock. The workflow renders runtime files on the host, copies the
+   reviewed Compose assets, pulls only the locked digests with the EC2 role, runs migrations, and
+   executes readiness and authenticated smoke checks. Manual dispatch only replays the desired state
+   already committed on `main`.
+
+For a first release or promotion-service outage, download the app publisher's
+`release-metadata-<commit-SHA>` artifact, create a normal infra task branch, and run
+`just promote-images <artifact-path>`. Review and merge that PR through the same CI and deployment
+path; never write the lock directly to `main`.
 
 The app [OIDC setup](https://github.com/ivanprytula/api-observatory/blob/main/docs/06-ci-cd/github-secrets-setup.md)
 owns repository variables and least-privilege role responsibilities.
 
 ## Delivery and Verification
 
-The app repository manually publishes CI-checked `tree-<SHA>` images and machine-readable release
-metadata to ECR/GitHub Actions. Promotion is an infra PR that changes `images.lock.json`; the
-manually dispatched GitHub CD workflow checks out the locked app commit, verifies its tree and image
-digests, then applies that exact desired state through Systems Manager. Tag-based automatic promotion remains suspended until a live
-Stage 0 deploy, rollback, and teardown have been exercised.
+The app repository publishes CI-checked `tree-<SHA>` images and machine-readable release metadata to
+ECR/GitHub Actions after a deployable `main` change passes its merge gate. Promotion is one bot-owned
+infra PR that changes `images.lock.json`; only the current app `main` tip may update that PR. Merging the reviewed
+lock is the deployment approval. Infra CI then checks out the locked app commit, verifies its tree and
+image digests, and applies that exact desired state through Systems Manager. Both AWS enablement
+variables remain explicit kill switches, and a manual dispatch can only replay current infra `main`.
 
 The committed all-zero image lock is only a pre-provisioning schema fixture. Infrastructure CI labels
 that exception explicitly; the deployment workflow rejects it. Before enabling any AWS delivery gate,
@@ -136,7 +145,8 @@ Configuration or a successful plan alone is not deployment proof.
 
 ## Rollback and Teardown
 
-Canonical rollback reverts the image-lock commit and reruns the same desired-state deployment. The
+Canonical rollback reverts the image-lock commit through a reviewed PR; its merge invokes the same
+desired-state deployment. The
 rollout also attempts to restore the previous deployment environment when readiness fails, but that
 is best-effort only: it does not downgrade either database and cannot make an incompatible schema
 contraction safe. Application migrations must remain backward compatible with both image sets.
@@ -154,8 +164,9 @@ secondary/reference and must not be mixed into the AWS Stage 0 claim.
 
 Bootstrap prepares the host only; the first approved infra desired-state deployment renders runtime files and starts `ingestor-db`,
 `ingestor`, and `dashboard`. To enable an optional dependency, add its name to `enabled_profiles` in
-the reviewed image-lock PR, add the corresponding Parameter Store values, then rerun the renderer
-and desired-state deployment. Supported profiles are `inference`, `cache`, `broker`, and
+a separate reviewed infrastructure PR, add the corresponding Parameter Store values, then merge the
+profile change to run the desired-state deployment. Automated image promotion preserves the profile
+selection already on `main`. Supported profiles are `inference`, `cache`, `broker`, and
 `monitoring`. Direct notification delivery remains the default; `notification-consumer` starts only
 with the broker profile. No optional profile is required for the core service claim.
 

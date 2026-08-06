@@ -80,6 +80,41 @@ class PromoteStage0ImagesTests(unittest.TestCase):
                 release_metadata(), {"enabled_profiles": ["unknown"]}
             )
 
+    def test_duplicate_release_builds_identical_desired_state(self) -> None:
+        metadata = release_metadata()
+        current = {"enabled_profiles": ["inference"]}
+
+        first = promote_stage0_images.build_lock(metadata, current)
+        duplicate = promote_stage0_images.build_lock(metadata, first)
+
+        self.assertEqual(duplicate, first)
+
+    def test_newer_release_supersedes_images_and_preserves_profiles(self) -> None:
+        current = promote_stage0_images.build_lock(
+            release_metadata(), {"enabled_profiles": ["inference", "monitoring"]}
+        )
+        newer = release_metadata()
+        newer["source_commit_sha"] = "6" * 40
+        newer["source_tree_sha"] = "7" * 40
+        newer["images"] = {
+            name: {
+                "repository": f"api-observatory/{name}",
+                "digest": f"sha256:{value * 64}",
+            }
+            for name, value in (
+                ("ingestor", "8"),
+                ("inference", "9"),
+                ("dashboard", "a"),
+            )
+        }
+
+        promoted = promote_stage0_images.build_lock(newer, current)
+
+        self.assertEqual(promoted["source_commit_sha"], "6" * 40)
+        self.assertEqual(promoted["source_tree_sha"], "7" * 40)
+        self.assertEqual(promoted["enabled_profiles"], current["enabled_profiles"])
+        self.assertNotEqual(promoted["images"], current["images"])
+
 
 if __name__ == "__main__":
     unittest.main()

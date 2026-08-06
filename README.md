@@ -72,7 +72,7 @@ measured operational pressure; Kubernetes remains a later evidence-triggered sta
 AWS delivery remains disabled by default. A real deployment requires an approved Terraform plan,
 published CI-green images, reviewed runtime SecureString values, and a non-placeholder
 `environments/aws-dev/images.lock.json`. The [deployment guide](docs/deployment/deployment-guide.md)
-documents the explicit Terraform, Ansible bootstrap, and manually dispatched CD workflow, while the
+documents the explicit Terraform and Ansible bootstrap plus the reviewed promotion-PR deployment flow, while the
 [promotion model](docs/deployment/promotion-model.md) defines the current dev/stage/prod-like lane
 structure and explains why the live target remains `aws-dev` for now. The
 [CI/CD configuration guide](docs/deployment/ci-cd-guide.md) maps the GitHub Actions events,

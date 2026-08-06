@@ -26,7 +26,7 @@ Azure assets remain secondary/reference material; local cloud emulators remain a
 | Database | Local PostgreSQL containers on encrypted EC2 EBS volumes; inference keeps a separate optional database volume |
 | Registry | Private ECR images tagged `tree-<SHA>` |
 | Identity | Short-lived GitHub OIDC roles and EC2 instance role; prerequisite, not yet provisioned here |
-| Delivery | Infra-owned, manually gated workflow through Systems Manager |
+| Delivery | Reviewed image-lock PR; green merged state deploys through Systems Manager |
 | Monitoring | Prometheus/Alertmanager/Grafana/Promtail assets; live backends and evidence still required |
 | Secondary cloud | Azure Terraform/Ansible retained for comparison, not the primary deployment claim |
 

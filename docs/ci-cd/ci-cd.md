@@ -23,15 +23,16 @@ workflow proves static validation only; it does not prove that Terraform was app
 deployed, or recovery was exercised.
 
 Short-lived task branches target `main`. The stable `CI / Merge gate` fails unless every internal
-validation job succeeds. Repository settings intentionally do not enforce checks or approvals yet,
-so waiting for that gate is a maintainer policy rather than a GitHub restriction. Internal job names
-and structure may evolve without changing the contributor or promotion contract.
+validation job succeeds. Before AWS delivery is enabled, protect `main` in both repositories by
+requiring a pull request and the stable merge gate. Internal job names and structure may evolve
+without changing the contributor or promotion contract.
 
 ## Cross-Repository Delivery
 
-The application repository owns application CI, image smoke tests, and manual immutable-image
+The application repository owns application CI, image smoke tests, and post-gate immutable-image
 publication. Its publisher OIDC role can push and inspect ECR images only. This repository owns
-infrastructure CI, the reviewed `images.lock.json` desired state, and protected manual deployment.
+the promotion script, infrastructure CI, the reviewed `images.lock.json` desired state, and
+deployment of that merged state.
 The lock binds the published app commit and tree to exact image digests; validation checks out that
 commit rather than whichever app branch happens to be the default.
 Its deployer OIDC role can inspect ECR digests and send commands only to the approved EC2 target;
@@ -55,11 +56,14 @@ requires a reviewed plan and explicit approval before these configured resources
 When a change affects published images, the runtime service contract, or deployment topology:
 
 1. Merge the application PR into `main` and wait for the app repo `CI / Merge gate` to succeed.
-2. Publish immutable `tree-<SHA>` images from the app repository using `publish-images.yml`.
-3. Download the resulting `release-metadata-<commit-SHA>` artifact.
-4. In `api-observatory-infra`, create a separate task branch from `main`, run
-   `just promote-images <artifact-path>`, review the generated `images.lock.json`, and open an
-   infra PR.
-5. After infra CI passes, manually dispatch the approved Stage 0 deployment workflow in this repo.
+2. For a deployable change, app CI calls `publish-images.yml`, publishes immutable `tree-<SHA>`
+   images, applies this repository's promotion script to current infra `main`, and opens or updates
+   the single `automation/promote-aws-dev` PR.
+3. Review the source identity, image digests, and green infra gate, then merge the PR to approve it.
+4. Infra CI calls `deploy-aws-stage0.yml` for that merged lock. Manual dispatch only replays the
+   lock already committed on `main`.
+
+The downloaded release artifact and `just promote-images` remain a manual fallback, but their output
+must go through a normal infra PR. Optional profiles also change through a separate infra PR.
 
 Do not describe a lock-file change, Terraform plan, or published image as a completed deployment.

@@ -19,6 +19,7 @@ jobs:
     outputs:
       infra: ${{ steps.filter.outputs.infra }}
       docs: ${{ steps.filter.outputs.docs }}
+      aws_stage0_lock: ${{ steps.filter.outputs.aws_stage0_lock }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,7 +39,7 @@ jobs:
           fi
           echo "$changed_files"
           workflows_regex='^\.github/workflows/(ci|deploy-aws-stage0|deploy-aws-stage|deploy-aws-prod-like)\.yml'
-          infra_paths_regex='^(terraform/|ansible/|kubernetes/|monitoring/|deployment/|scripts/|tests/'
+          infra_paths_regex='^(terraform/|ansible/|kubernetes/|monitoring/|deployment/|environments/|scripts/|tests/'
           infra_paths_regex+='|pyproject.toml|uv.lock|\.python-version|Justfile)'
           if echo "$changed_files" | grep -Eq "$infra_paths_regex" \
               || echo "$changed_files" | grep -Eq "$workflows_regex"; then
@@ -51,6 +52,11 @@ jobs:
             echo "docs=true" >> "$GITHUB_OUTPUT"
           else
             echo "docs=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$changed_files" | grep -Fxq 'environments/aws-dev/images.lock.json'; then
+            echo "aws_stage0_lock=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "aws_stage0_lock=false" >> "$GITHUB_OUTPUT"
           fi
 
   workflow-quality:
@@ -328,3 +334,16 @@ jobs:
             "$SHELLCHECK_RESULT"; do
             [[ "$result" == "success" || "$result" == "skipped" ]] || exit 1
           done
+
+  deploy-aws-stage0:
+    name: Deploy AWS Stage 0 desired state
+    needs: [changes, merge-gate]
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.aws_stage0_lock == 'true' &&
+      needs.merge-gate.result == 'success'
+    permissions:
+      checks: read
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-aws-stage0.yml

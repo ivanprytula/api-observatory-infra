@@ -15,7 +15,8 @@ help-aws-stage0:
     @echo "7. Obtain explicit approval before: terraform apply tfplan"
     @echo "8. Bootstrap through the explicit SSM Ansible commands in docs/deployment/deployment-guide.md."
     @echo "9. Add runtime SecureStrings outside Git and review a real images.lock.json promotion."
-    @echo "10. Dispatch deployment only after the aws-dev environment approval."
+    @echo "10. Merge the green aws-dev promotion PR to approve automatic deployment."
+    @echo "11. Manual workflow dispatch only replays the desired state already on main."
 
 promote-images metadata-file:
     uv run python scripts/promote_stage0_images.py "{{metadata-file}}"
