@@ -1,9 +1,8 @@
 # API Observatory — Infrastructure
 
-Multi-cloud Infrastructure-as-Code for the [API Observatory](https://github.com/ivanprytula/api-observatory) platform.
+AWS-first Infrastructure-as-Code for the [API Observatory](https://github.com/ivanprytula/api-observatory) platform.
 
-AWS is the primary portfolio deployment direction; Azure remains secondary/reference
-infrastructure. The [evolution plan](docs/architecture/evolution-plan.md) owns platform stages and
+AWS is the only active infrastructure direction. The [evolution plan](docs/architecture/evolution-plan.md) owns platform stages and
 adoption triggers, while the [baseline](docs/architecture/baseline-checklist.md) owns durable
 security/SRE controls.
 
@@ -19,22 +18,18 @@ For the shared onboarding, task, PR, and release handoff checklist, use the app 
 ```text
 terraform/
   environments/
-    azure-dev/           Azure cloud (B1s free tier)
     aws-dev/             AWS MVP platform environment
-ansible/                 Playbooks, inventory (multi-cloud), roles
-kubernetes/              K8s manifests, Helm charts, overlays (cloud-neutral)
-monitoring/              Prometheus, Alertmanager, Grafana (cloud-neutral)
-security/                Seccomp profiles
-scripts/                 Provisioning, backup/restore (per-cloud variants)
+ansible/                 SSM inventory and AWS MVP host-bootstrap roles
+scripts/                 Static validation and developer diagnostics
 docs/                    CI, deployment, observability, recovery, evolution, baseline
 ```
 
-Sandbox environments (floci-az, floci-aws) live in the **app repo** — they're dev tooling.
+The disposable AWS emulator sandbox lives in the **app repo** and is not deployment evidence.
 
 ## Working with the Repository
 
-The [`Justfile`](Justfile) owns supported named workflows: Ansible linting, Helm linting, and
-non-mutating MVP/Kubernetes scope help. Native Terraform and Ansible commands are
+The [`Justfile`](Justfile) owns supported named workflows for diagnostics, Ansible linting, and
+non-mutating AWS MVP scope help. Native Terraform and Ansible commands are
 appropriate for explicit operator work. Follow [Contributing](CONTRIBUTING.md) for the task-branch and
 pull-request lifecycle. Run `just help-aws-mvp` for the non-mutating operator sequence. Start with
 static validation and a reviewed plan. Any apply, deployment, restore, chaos action, or teardown requires
@@ -51,14 +46,14 @@ you are deliberately dropping support for an older runtime.
 
 ## Contract with App Repo
 
-| Contract | AWS primary MVP | Azure secondary/reference |
-| --- | --- | --- |
-| Image registry | ECR | ACR |
-| Published images | ingestor `:8000`, inference `:8001`, dashboard `:8501` | Same application contract |
-| Default runtime | ingestor and dashboard; inference is an opt-in profile | Same application contract |
-| Image tag format | `tree-<SHA>` | `tree-<SHA>` |
-| Compute | EC2 + Docker Compose | VM + Docker Compose |
-| Config schema | App repo environment contract | Same |
+| Contract | AWS MVP |
+| --- | --- |
+| Image registry | ECR |
+| Published images | ingestor `:8000`, inference `:8001`, dashboard `:8501` |
+| Default runtime | ingestor and dashboard; inference is an opt-in profile |
+| Image tag format | `tree-<SHA>` |
+| Compute/data | EC2 Compose with PostgreSQL containers on encrypted EBS |
+| Config schema | App-owned environment contract rendered from Parameter Store |
 
 ## Platform Direction
 
@@ -66,8 +61,9 @@ MVP provides one EC2 Docker Compose host with ECR, Parameter Store, and retained
 platform control plane. The application repository holds the AWS desired-state image lock and
 workload topology. The host is operated privately through Systems Manager; public ingress, DNS, and
 TLS are deferred. This is a
-planned/configured path, not a completed deployment. ECS/Fargate and managed databases require
-measured operational pressure; Kubernetes remains a later evidence-triggered stage.
+planned/configured path, not a completed deployment. After exercised EC2 evidence, the learning
+sequence is ECS on Fargate and then EKS. Product migration beyond EC2 still requires measured
+operational pressure; another IaaS provider is deferred until all three AWS stages are exercised.
 
 AWS gates remain disabled by default. A real deployment requires an approved Terraform plan,
 reviewed runtime SecureString values, app-managed immutable images, and a reviewed app lock. The
@@ -87,8 +83,6 @@ Install only the row matching the work you will perform.
 | Terraform formatting, validation, and plan review | Terraform and TFLint |
 | Ansible playbook development and linting | `pipx`, full Ansible, `ansible-lint`, and collections from `ansible/requirements.yml` |
 | AWS MVP bootstrap | AWS CLI, `session-manager-plugin`, Terraform, Ansible, `jq`, and S3-capable AWS credentials on the controller |
-| Azure reference work | Azure CLI |
-| Kubernetes or emulator labs | Only when used: Docker, `kubectl`, Helm, k3d, and the relevant emulator |
 
 Install Ansible as an isolated operator tool rather than into a project or system Python environment:
 

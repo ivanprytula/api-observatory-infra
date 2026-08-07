@@ -1,57 +1,47 @@
-# Infrastructure Evolution — VM to Managed Platform
+# AWS Infrastructure Evolution
 
-> **Status:** AWS MVP is a planned, statically validated direction; no live deployment is
-> claimed.
+> **Status:** The EC2 MVP is planned and statically validated; no live deployment is claimed.
 
-The app contract publishes three HTTP images: ingestor, inference, and dashboard. The default MVP
-runtime starts ingestor, dashboard, and the ingestor PostgreSQL database; inference and its database
-are an opt-in profile on the same EC2 Docker Compose platform. AWS is the primary portfolio direction.
-Azure assets remain secondary/reference material; local cloud emulators remain app-owned labs.
+The app publishes immutable ingestor, inference, and dashboard images. The default workload runs
+ingestor, dashboard, and PostgreSQL containers on one private, SSM-operated EC2 Compose host;
+inference and its database are an optional profile. PostgreSQL data lives on encrypted EBS and
+retained backups live in encrypted, versioned S3 storage.
 
 ## Principles
 
-- Prefer the simplest platform that meets the current product, reliability, and recovery need.
-- Keep application boundaries independent from platform choice: Kubernetes does not create clean
-  service ownership, and clean services do not require Kubernetes.
-- Treat the [security/SRE baseline](baseline-checklist.md) as a floor, not speculative scope.
-- Advance from measured delivery, scaling, availability, recovery, or ownership pressure—not from
-  technology interest.
-- Describe Terraform, manifests, plans, and local labs as configuration evidence until exercised.
+- Keep application contracts portable through images, environment configuration, health endpoints,
+  and versioned release metadata.
+- Keep platform implementations explicit. Do not build provider-switching Terraform abstractions
+  before a second exercised provider exists.
+- Add one operational layer at a time and retain provisioning, deployment, recovery, rollback, and
+  teardown evidence before advancing.
+- Production adoption requires measured delivery, scaling, availability, or ownership pressure;
+  learning evidence alone does not prove a production need.
 
-## Current Contract
+## AWS Learning Sequence
 
-| Concern | Current direction |
-| --- | --- |
-| Compute | One EC2 host running core images and reviewed optional profiles with Docker Compose |
-| Database | Local PostgreSQL containers on encrypted EC2 EBS volumes; inference keeps a separate optional database volume |
-| Registry | Private ECR images tagged `tree-<SHA>` |
-| Identity | Short-lived GitHub OIDC roles and EC2 instance role; prerequisite, not yet provisioned here |
-| Delivery | Reviewed image-lock PR; green merged state deploys through Systems Manager |
-| Monitoring | Prometheus/Alertmanager/Grafana/Promtail assets; live backends and evidence still required |
-| Secondary cloud | Azure Terraform/Ansible retained for comparison, not the primary deployment claim |
-
-The app-owned [deployment contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md)
-is authoritative for images, ports, health, environment names, and secret-consumption behavior.
-
-## Evolution Stages
-
-| Stage | Platform shape | Entry evidence |
+| Stage | Capability | Entry evidence |
 | --- | --- | --- |
-| 0 | Core images and PostgreSQL on one EC2 Compose host; optional dependencies as profiles | Approved cost/security plan plus local image/contract proof |
-| 1 | Same platform with strengthened service/module seams | Contract or ownership friction on the shared runtime |
-| 2 | First independently operated workload, likely inference | Independent scale, release cadence, or isolation objective |
-| 3 | Kubernetes orchestration | Several workloads need self-healing, scheduling, or consistent platform policy |
-| 4 | GitOps/progressive delivery | Multiple environments/clusters create drift or release-risk evidence |
-| 5 | Multi-AZ/region and advanced scaling | Explicit SLO/RTO/RPO or sustained capacity evidence |
+| 0 | Static EC2 Compose contract | Local image/contract proof and reviewed cost/security plan |
+| 1 | Exercised EC2 MVP | Approved Terraform apply, SSM bootstrap, deployment, recovery, rollback, and teardown records |
+| 2 | ECS on Fargate learning slice | Completed Stage 1 evidence and an explicit Compose-to-ECS comparison |
+| 3 | EKS learning slice | Completed Stage 2 evidence and an explicit orchestration comparison |
+| 4 | Another IaaS provider | Exercised evidence from Stages 1–3 |
 
-## Transformation Gates
+No Fargate, EKS, or additional-provider scaffolding belongs in this repository before its entry
+condition is met. Product post-MVP work may proceed independently.
 
-- Multiple ingestor replicas require a stateless request path and explicit scheduler ownership.
-- A managed gateway requires multiple public services or consumer-specific edge policy.
-- ECS/Kubernetes requires repeated Compose delivery friction or independent workload scaling.
-- Read replicas, partitioning, or sharding require a measured database limit after query, index, and
-  retention work.
-- Multi-region requires a recovery objective that one-region backup/restore cannot satisfy.
+## Current Platform Contract
 
-When a gate is met, update the contract, baseline, observability target, rollback path, and evidence
-status in the same technical change. Git history carries completed project-process history.
+| Concern | Current choice |
+| --- | --- |
+| Compute | One EC2 host running app-owned Docker Compose desired state |
+| Database | PostgreSQL containers on encrypted EC2 EBS |
+| Images | App-published immutable ECR digests |
+| Access | Systems Manager only; no inbound SSH or public application ingress |
+| Runtime values | EC2 role reads grouped SecureString parameters from Parameter Store |
+| Recovery | Retained S3 PostgreSQL backups and disposable restore verification |
+| Delivery | Reviewed app lock merge triggers the app-owned deployment workflow |
+
+Update this plan only when retained evidence advances a stage or changes the current contract. Git
+history carries discarded platform directions.

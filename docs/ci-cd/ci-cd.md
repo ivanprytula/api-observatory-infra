@@ -6,7 +6,7 @@ control plane.
 
 ## Validation Gates
 
-Terraform format/validate, TFLint, Checkov, Ansible lint, Helm lint, YAML lint, ShellCheck, Ruff,
+Terraform format/validate, TFLint, Checkov, Ansible lint, YAML lint, ShellCheck, Ruff,
 documentation command checks, workflow reference checks, secret scanning, and the MVP platform
 contract test validate committed configuration. A passing workflow proves static validation only; it
 does not prove that Terraform was applied, a workload was deployed, or recovery was exercised.
@@ -19,8 +19,8 @@ operator decision and target review; CI never authorizes a cloud mutation.
 
 The application repository owns application CI, immutable images, the reviewed `aws-dev` lock,
 Compose workload, migrations, readiness, smoke checks, and application rollback. This repository
-owns Terraform state, networking, EC2/RDS/ECR/S3, IAM, Parameter Store, Docker/SSM bootstrap,
-backup/restore tooling, host recovery, and infrastructure monitoring.
+owns Terraform state, networking, ECR, one EC2 host with encrypted EBS, IAM, Parameter Store,
+Docker/SSM bootstrap, retained S3 backups, host recovery, and AWS platform logs.
 
 When an interface changes, update the app delivery contract and the MVP platform contract together.
 Keep Checkov exceptions narrow and documented in [`TERRAFORM_CHECKS.md`](../../TERRAFORM_CHECKS.md).
