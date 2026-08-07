@@ -31,7 +31,7 @@ Read this file first. Read only instruction files that match the files you touch
 
 ## Execution rules
 
-Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply`, `kubectl apply/delete/exec`, `helm install/upgrade/delete`, or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--dry-run`, etc.) and getting explicit confirmation.
+Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
 
 ## Response style
 
@@ -67,12 +67,11 @@ Do not try to reproduce by reading the credential file. Pivot to: (a) reading th
 
 For each topic below, the principles are listed inline; the long-form guidance and invokable procedures live in `.github/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
 
-### Security (Terraform/Ansible/K8s) → see repo `CLAUDE.md` "Security Config" section
+### Security (Terraform/Ansible) → see repo `CLAUDE.md` "Security Config" section
 
 - **State & secrets.** Never read or print `.tfstate*`, `vault.yml`, or non-`.example` `.tfvars`. Backend config lives in `backend.*.hcl.example`.
-- **Change visibility.** Always run `terraform plan` (or `-out=tfplan`) before `apply`; always explain what a `kubectl`/`helm` command will change before running it.
-- **Network policy.** Network policies are mandatory for all Kubernetes services — flag manifests that lack one.
-- **Provider pinning.** Pin Terraform provider versions explicitly; keep AWS and Azure environments structurally parallel.
+- **Change visibility.** Always run `terraform plan` (or `-out=tfplan`) before `apply` and use Ansible check mode before an approved bootstrap when supported.
+- **Provider pinning.** Pin Terraform provider versions and commit the `aws-dev` provider lock.
 
 ### Markdown → see app repo `.github/instructions/markdown.instructions.md` (shared convention)
 
@@ -90,7 +89,7 @@ Use ACROSS as the primary design lens for any code in this repo (scripts, Ansibl
 
 ### Anti-overengineering
 
-Before suggesting any custom implementation, check whether a well-known Terraform module, Ansible role, or Helm chart already solves the same problem. Flag abstractions (Terraform modules, Ansible roles) with fewer than 3 callers/environments. Simplest solution wins — complexity must be justified by a concrete, current requirement (e.g. this repo's actual multi-cloud layout), not a future hypothetical.
+Before suggesting any custom implementation, check whether a well-known Terraform module or Ansible role already solves the same problem. Flag abstractions with fewer than 3 callers or without a current AWS requirement. Simplest solution wins; portability belongs at the application contract boundary, not in speculative provider abstractions.
 
 ---
 

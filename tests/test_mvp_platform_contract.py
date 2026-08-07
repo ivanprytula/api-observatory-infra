@@ -9,6 +9,16 @@ MVP_ROLE = ROOT / "ansible/roles/mvp"
 
 
 class MvpPlatformContractTests(unittest.TestCase):
+    def test_repository_has_one_active_aws_platform(self) -> None:
+        environments = ROOT / "terraform/environments"
+
+        self.assertEqual(
+            {path.name for path in environments.iterdir() if path.is_dir()},
+            {"aws-dev"},
+        )
+        self.assertFalse((ROOT / "kubernetes").exists())
+        self.assertFalse((ROOT / "monitoring").exists())
+
     def test_app_deployment_role_is_limited_to_the_app_aws_dev_environment(
         self,
     ) -> None:

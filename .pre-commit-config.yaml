@@ -6,7 +6,6 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
-        exclude: kubernetes/charts/.*/templates/
       - id: check-toml
       - id: check-json
       - id: check-added-large-files
@@ -63,14 +62,13 @@ repos:
           - --quiet
           - --compact
           - --skip-check
-          - CKV2_AWS_62,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
+          - CKV2_AWS_62,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:
       - id: yamllint
         args: [-c, .yamllint.yml]
-        exclude: kubernetes/charts/.*/templates/
 
   - repo: https://github.com/koalaman/shellcheck-precommit
     rev: v0.11.0
@@ -94,4 +92,4 @@ repos:
         entry: uv run python scripts/check_docs_commands.py
         language: system
         pass_filenames: false
-        files: ^(README\.md|CONTRIBUTING\.md|Justfile|docs/|kubernetes/)
+        files: ^(README\.md|CONTRIBUTING\.md|Justfile|docs/)

@@ -24,7 +24,6 @@ def supported_recipes() -> set[str]:
 def active_documentation() -> list[Path]:
     documents = [PROJECT_ROOT / "README.md", PROJECT_ROOT / "CONTRIBUTING.md"]
     documents.extend(sorted((PROJECT_ROOT / "docs").rglob("*.md")))
-    documents.append(PROJECT_ROOT / "kubernetes" / "README.md")
     return [document for document in documents if ".plans" not in document.parts]
 
 
@@ -38,12 +37,6 @@ def main() -> int:
         for recipe in unknown:
             failures.append(
                 f"{document.relative_to(PROJECT_ROOT)}: unknown Just recipe `{recipe}`"
-            )
-
-    for path in sorted((PROJECT_ROOT / "kubernetes").rglob("*")):
-        if path.is_file() and "data-zoo" in path.read_text(encoding="utf-8"):
-            failures.append(
-                f"{path.relative_to(PROJECT_ROOT)}: contains retired `data-zoo` namespace"
             )
 
     if failures:

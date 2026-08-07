@@ -1,6 +1,6 @@
 ---
 name: ansible-playbook-patterns
-description: "Ansible development patterns for this repo's provisioning playbooks. Covers idempotency checks (avoiding shell/command tasks that aren't guarded by `changed_when`/`creates`), `ansible-lint` conventions, tagging strategy for selective runs, and inventory group-per-cloud patterns (azure_dev, aws_dev). Includes guidance specific to this repo's ansible/playbooks/ and ansible/inventory/ layout and ansible.cfg defaults."
+description: "Ansible development patterns for the AWS MVP bootstrap. Covers idempotency, ansible-lint conventions, tagging, and the SSM-operated aws_dev inventory."
 metadata:
   applyTo: "ansible/**/*.yml, ansible/**/*.yaml, ansible.cfg"
 argument-hint: "concern: idempotency|linting|tagging|inventory"
@@ -8,8 +8,7 @@ argument-hint: "concern: idempotency|linting|tagging|inventory"
 
 # Ansible Playbook Patterns — Skill
 
-Purpose: keep playbooks idempotent, lintable, and consistent with this repo's cloud-per-group inventory
-layout.
+Purpose: keep the AWS MVP bootstrap idempotent, lintable, and consistent with the SSM inventory.
 
 When to invoke: writing or reviewing anything under `ansible/playbooks/` or `ansible/inventory/`.
 
@@ -41,12 +40,12 @@ When to invoke: writing or reviewing anything under `ansible/playbooks/` or `ans
   applied to a benign task — destructive actions should be independently selectable, never accidentally
   swept in.
 
-## Inventory conventions (this repo)
+## Inventory conventions
 
-- Inventory uses group-per-cloud: `azure_dev`, `aws_dev` (see `ansible/inventory/`). New environments follow
-  the same `<cloud>_<env>` naming.
+- `aws_dev` is the sole inventory group and uses `amazon.aws.aws_ssm`; do not add SSH inventory as a
+  fallback.
 - `ansible.cfg` at repo root holds shared defaults (inventory path, roles path, retry file location) — don't
   override these per-playbook unless there's a concrete reason; check `ansible.cfg` first before adding
   playbook-level config.
-- Cloud-specific variables (region, resource group, VPC) belong in group_vars for that cloud's group, not
-  hardcoded in playbook tasks — this is what keeps a playbook portable across `azure_dev`/`aws_dev`.
+- AWS-specific region and SSM variables belong in `group_vars/aws_dev`; application runtime values
+  remain app-owned and are rendered from Parameter Store by the MVP role.

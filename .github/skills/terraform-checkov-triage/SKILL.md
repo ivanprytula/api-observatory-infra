@@ -3,7 +3,7 @@ name: terraform-checkov-triage
 description: "Triage a Checkov finding against this repo's TERRAFORM_CHECKS.md deferral log. Determines whether a finding is a new deferral requiring justification and a fix timeline, or an existing tracked one that just needs its status confirmed. Cross-references the finding against baseline-checklist.md when it's security-relevant. USE FOR: Checkov CI failures, new Checkov findings, reviewing TERRAFORM_CHECKS.md entries."
 metadata:
   applyTo: "terraform/**/*.tf, TERRAFORM_CHECKS.md"
-argument-hint: "checkov-check-id (e.g. CKV_AWS_20, CKV_AZURE_35)"
+argument-hint: "checkov-check-id (e.g. CKV_AWS_20)"
 ---
 
 # Terraform Checkov Triage — Skill
@@ -16,7 +16,7 @@ status check during a plan-maintenance pass.
 
 ## Triage steps
 
-1. **Identify the check ID** (e.g. `CKV_AWS_20`, `CKV_AZURE_35`) and read what it actually validates —
+1. **Identify the check ID** (for example, `CKV_AWS_20`) and read what it actually validates —
    don't triage from the summary line alone, pull the specific resource/attribute it's checking.
 2. **Search `TERRAFORM_CHECKS.md`** for this check ID. If it's already there:
    - Confirm the resource address in the new finding matches an existing entry, or is a new instance of a

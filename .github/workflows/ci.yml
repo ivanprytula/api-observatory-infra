@@ -37,8 +37,8 @@ jobs:
             changed_files=$(git diff-tree --no-commit-id --name-only -r "$head")
           fi
           echo "$changed_files"
-          workflows_regex='^\.github/workflows/(ci|deploy-aws-stage|deploy-aws-prod-like)\.yml'
-          infra_paths_regex='^(terraform/|ansible/|kubernetes/|monitoring/|scripts/|tests/'
+          workflows_regex='^\.github/workflows/ci\.yml'
+          infra_paths_regex='^(terraform/|ansible/|scripts/|tests/'
           infra_paths_regex+='|pyproject.toml|uv.lock|\.python-version|Justfile)'
           if echo "$changed_files" | grep -Eq "$infra_paths_regex" \
               || echo "$changed_files" | grep -Eq "$workflows_regex"; then
@@ -195,27 +195,7 @@ jobs:
           compact: true
           # Skip list MUST stay in sync with .pre-commit-config.yaml and the
           # justifications in TERRAFORM_CHECKS.md (each ID = one documented row).
-          skip_check: CKV2_AWS_62,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145,CKV_AZURE_43,CKV_AZURE_50,CKV_AZURE_119,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_21,CKV2_AZURE_31,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_57
-
-  helm-lint:
-    name: Helm Lint
-    needs: [changes]
-    if: needs.changes.outputs.infra == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
-        with:
-          version: "v3.17.0"
-
-      - name: Lint all charts
-        run: |
-          for chart in kubernetes/charts/*/; do
-            echo "::group::Linting ${chart}"
-            helm lint "$chart"
-            echo "::endgroup::"
-          done
+          skip_check: CKV2_AWS_62,CKV_AWS_21,CKV_AWS_130,CKV_AWS_136,CKV_AWS_144,CKV_AWS_145
 
   yaml-lint:
     name: YAML Lint
@@ -254,7 +234,7 @@ jobs:
       - name: Sync Python tooling
         run: uv sync --frozen
 
-      - name: Check active documentation commands and Kubernetes namespace
+      - name: Check active documentation commands
         run: uv run python scripts/check_docs_commands.py
 
   shellcheck:
@@ -280,7 +260,6 @@ jobs:
       - terraform-validate
       - tflint
       - checkov
-      - helm-lint
       - yaml-lint
       - docs-command-references
       - shellcheck
@@ -293,7 +272,6 @@ jobs:
           TERRAFORM_VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
           TFLINT_RESULT: ${{ needs.tflint.result }}
           CHECKOV_RESULT: ${{ needs.checkov.result }}
-          HELM_RESULT: ${{ needs.helm-lint.result }}
           YAML_RESULT: ${{ needs.yaml-lint.result }}
           DOCS_COMMAND_REFERENCES_RESULT: ${{ needs.docs-command-references.result }}
           SHELLCHECK_RESULT: ${{ needs.shellcheck.result }}
@@ -302,7 +280,7 @@ jobs:
           for result in \
             "$WORKFLOW_RESULT" "$RUFF_RESULT" "$TERRAFORM_FMT_RESULT" \
             "$TERRAFORM_VALIDATE_RESULT" "$TFLINT_RESULT" "$CHECKOV_RESULT" \
-            "$HELM_RESULT" "$YAML_RESULT" "$DOCS_COMMAND_REFERENCES_RESULT" \
+            "$YAML_RESULT" "$DOCS_COMMAND_REFERENCES_RESULT" \
             "$SHELLCHECK_RESULT"; do
             [[ "$result" == "success" || "$result" == "skipped" ]] || exit 1
           done

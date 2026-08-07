@@ -2,8 +2,7 @@
 #
 # Just owns supported named workflows. Use the documented native Terraform and
 # Ansible commands for explicit operator work, including plan review and host
-# bootstrap. Kubernetes is Deferred/Post-MVP; its assets are not a supported
-# local deployment workflow.
+# bootstrap. This repository has one active platform target: AWS `aws-dev`.
 
 doctor:
     bash scripts/doctor.sh
@@ -22,15 +21,3 @@ help-aws-mvp:
 
 ansible-lint:
     ansible-lint --project-dir ansible
-
-helm-lint:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for chart in kubernetes/charts/*/; do
-        echo "Linting ${chart}..."
-        helm lint "$chart"
-    done
-
-help-kubernetes:
-    @echo "Kubernetes/k3d assets are Deferred/Post-MVP and are not a supported deployment workflow."
-    @echo "See kubernetes/README.md for scope and the evidence required before activation."

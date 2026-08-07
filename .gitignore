@@ -26,7 +26,6 @@ override.tf.json
 *.pem
 *.key
 id_rsa*
-scripts/.azure_credentials
 
 # OS
 .DS_Store
