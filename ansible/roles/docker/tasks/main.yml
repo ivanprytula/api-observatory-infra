@@ -35,15 +35,6 @@
   become: true
   notify: 'Start Docker service'
 
-- name: 'Add users to docker group'
-  ansible.builtin.user:
-    append: true
-    groups:
-      - 'docker'
-    name: '{{ item }}'
-  become: true
-  loop: '{{ docker_users }}'
-
 - name: 'Ensure Docker service is enabled and running'
   ansible.builtin.service:
     enabled: true
