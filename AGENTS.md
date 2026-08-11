@@ -12,7 +12,7 @@ Read this file first. Read only instruction files that match the files you touch
 
 ## Execution rules
 
-Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
+Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. After refactoring — especially when changing test files or touching more than one module — run all code-quality pre-commit hooks (Ruff, terraform, Ansible, shellcheck, yamllint, docs, etc.) before running tests. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
 
 ## Response style
 
@@ -29,7 +29,7 @@ Default shape: result, key validation, next step if needed. Keep explanations sh
 
 ## Git operations
 
-Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging.
+Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging. Never drop git stashes in any repository; preserve them across sessions.
 
 ## Commit messages
 
