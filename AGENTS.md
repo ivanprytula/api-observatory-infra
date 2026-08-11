@@ -108,3 +108,7 @@ For project architecture, product decisions, or engineering topic lookups:
   read `docs/architecture/evolution-plan.md`
   read `docs/architecture/baseline-checklist.md`
   read `docs/overview.md`
+
+## Instruction sync rule
+
+Whenever you add or update an instruction file listed in **Progressive-loading routes**, check whether the sibling app repository (`api-observatory`) has the same instruction file. If it does, update both repos to keep them in sync. If the sibling repo does not have it, update only the repo you were asked to modify, or the repo relevant to the specific action/question.
