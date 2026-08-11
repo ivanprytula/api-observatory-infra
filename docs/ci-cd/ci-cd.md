@@ -15,14 +15,4 @@ Short-lived task branches target `main`. Protect `main` with pull requests and t
 `CI / Merge gate`. Terraform applies, Ansible bootstrap, restores, and teardown require an explicit
 operator decision and target review; CI never authorizes a cloud mutation.
 
-## App/Platform Boundary
-
-The application repository owns application CI, immutable images, the reviewed `aws-dev` lock,
-Compose workload, migrations, readiness, smoke checks, and application rollback. This repository
-owns Terraform state, networking, ECR, one EC2 host with encrypted EBS, IAM, Parameter Store,
-Docker/SSM bootstrap, retained S3 backups, host recovery, and AWS platform logs.
-
-When an interface changes, update the app delivery contract and the MVP platform contract together.
-Keep Checkov exceptions narrow and documented in [`TERRAFORM_CHECKS.md`](../../TERRAFORM_CHECKS.md).
-Do not describe a Terraform plan, OIDC role, static check, or published image as a completed
-deployment.
+For the app/platform boundary and ownership model, see [docs/overview.md](overview.md).

@@ -3,12 +3,7 @@
 Recovery operations can interrupt services or destroy data. Inspect the exact target, preserve
 current image and backup identity, and obtain approval before any live restore or rollback.
 
-## Ownership
-
-- The app repository owns immutable workload desired state, migrations, readiness, smoke proof, and
-  application-image rollback.
-- This repository owns EC2 replacement/bootstrap, Parameter Store delivery, retained S3 backup
-  storage, and the host-installed PostgreSQL backup/restore commands.
+For ownership boundaries, see [docs/overview.md](overview.md).
 
 ## PostgreSQL Backup and Restore
 

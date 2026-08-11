@@ -4,6 +4,8 @@ The app repository owns application metrics, health/readiness semantics, structu
 the local monitoring profile, and workload Prometheus configuration. This repository owns only the
 AWS platform resources required by the EC2 MVP.
 
+For the full app/platform boundary, see [docs/overview.md](overview.md).
+
 ## Current Platform Signals
 
 - VPC flow logs and their encrypted CloudWatch log group are defined in `aws-dev` Terraform.

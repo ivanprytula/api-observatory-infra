@@ -16,12 +16,9 @@
 the app image/config/health contract; do not add provider-switching infrastructure abstractions
 before the EC2, ECS-on-Fargate, and EKS learning sequence has exercised evidence.
 
-## Contract with App Repo
+## App Contract
 
-- **Image tags**: routine app CI builds images locally; manually triggered, CI-gated AWS CD pushes
-  `tree-<SHA>` images to ECR and deploys their digests
-- **Health endpoints**: Ingestor `/health` on port `8000`, Dashboard on port `8501`
-- **Env vars**: App documents required config in `.env.example`
+See [docs/overview.md](overview.md) for the full platform contract and image/health/env details.
 
 ## Shell Scripting
 

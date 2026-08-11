@@ -2,10 +2,7 @@
 
 > **Status:** The EC2 MVP is planned and statically validated; no live deployment is claimed.
 
-The app publishes immutable ingestor, inference, and dashboard images. The default workload runs
-ingestor, dashboard, and PostgreSQL containers on one private, SSM-operated EC2 Compose host;
-inference and its database are an optional profile. PostgreSQL data lives on encrypted EBS and
-retained backups live in encrypted, versioned S3 storage.
+See [docs/overview.md](overview.md) for the current platform contract and app/platform boundary.
 
 ## Principles
 
@@ -31,17 +28,7 @@ retained backups live in encrypted, versioned S3 storage.
 No Fargate, EKS, or additional-provider scaffolding belongs in this repository before its entry
 condition is met. Product post-MVP work may proceed independently.
 
-## Current Platform Contract
-
-| Concern | Current choice |
-| --- | --- |
-| Compute | One EC2 host running app-owned Docker Compose desired state |
-| Database | PostgreSQL containers on encrypted EC2 EBS |
-| Images | App-published immutable ECR digests |
-| Access | Systems Manager only; no inbound SSH or public application ingress |
-| Runtime values | EC2 role reads grouped SecureString parameters from Parameter Store |
-| Recovery | Retained S3 PostgreSQL backups and disposable restore verification |
-| Delivery | Reviewed app lock merge triggers the app-owned deployment workflow |
+## Update Policy
 
 Update this plan only when retained evidence advances a stage or changes the current contract. Git
 history carries discarded platform directions.

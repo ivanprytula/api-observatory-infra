@@ -13,19 +13,6 @@ maintenance, and transformation, with direct links back to this repository at ea
 For the shared onboarding, task, PR, and release handoff checklist, use the app repository's
 [Canonical Onboarding and Delivery Checklist](https://github.com/ivanprytula/api-observatory/blob/main/docs/05-development/onboarding-and-delivery-checklist.md).
 
-## Repository Structure
-
-```text
-terraform/
-  environments/
-    aws-dev/             AWS MVP platform environment
-ansible/                 SSM inventory and AWS MVP host-bootstrap roles
-scripts/                 Static validation and developer diagnostics
-docs/                    CI, deployment, observability, recovery, evolution, baseline
-```
-
-The disposable AWS emulator sandbox lives in the **app repo** and is not deployment evidence.
-
 ## Working with the Repository
 
 The [`Justfile`](Justfile) owns supported named workflows for diagnostics, Ansible linting, and
@@ -44,66 +31,9 @@ change `.python-version` here and in the app repository in the same maintenance 
 `uv lock --upgrade` and the relevant CI suites. Do not raise `requires-python` lower bounds unless
 you are deliberately dropping support for an older runtime.
 
-## Contract with App Repo
+## Platform Boundaries and Contract
 
-| Contract | AWS MVP |
-| --- | --- |
-| Image registry | ECR |
-| Published images | ingestor `:8000`, inference `:8001`, dashboard `:8501` |
-| Default runtime | ingestor and dashboard; inference is an opt-in profile |
-| Image tag format | `tree-<SHA>` |
-| Compute/data | EC2 Compose with PostgreSQL containers on encrypted EBS |
-| Config schema | App-owned environment contract rendered from Parameter Store |
-
-## Platform Direction
-
-MVP provides one EC2 Docker Compose host with ECR, Parameter Store, and retained S3 backups as its
-platform control plane. The application repository holds the AWS desired-state image lock and
-workload topology. The host is operated privately through Systems Manager; public ingress, DNS, and
-TLS are deferred. This is a
-planned/configured path, not a completed deployment. After exercised EC2 evidence, the learning
-sequence is ECS on Fargate and then EKS. Product migration beyond EC2 still requires measured
-operational pressure; another IaaS provider is deferred until all three AWS stages are exercised.
-
-AWS gates remain disabled by default. A real deployment requires an approved Terraform plan,
-reviewed runtime SecureString values, app-managed immutable images, and a reviewed app lock. The
-[deployment guide](docs/deployment/deployment-guide.md) documents Terraform and Ansible bootstrap;
-the [CI/CD configuration guide](docs/deployment/ci-cd-guide.md) maps platform outputs and OIDC
-wiring. The application [delivery contract](https://github.com/ivanprytula/api-observatory/blob/main/docs/07-deployment/app-repo-contract.md)
-is the source for workload promotion and deployment.
-
-## Prerequisites
-
-The app repository owns the core local runtime; this repository adds infrastructure/operator tools.
-Install only the row matching the work you will perform.
-
-| Work | Developer-machine dependencies |
-| --- | --- |
-| Application work or local Compose verification | Follow the app [Setup Guide](https://github.com/ivanprytula/api-observatory/blob/main/docs/04-setup/setup-guide.md); this repository does not duplicate its versions |
-| Terraform formatting, validation, and plan review | Terraform and TFLint |
-| Ansible playbook development and linting | `pipx`, full Ansible, `ansible-lint`, and collections from `ansible/requirements.yml` |
-| AWS MVP bootstrap | AWS CLI, `session-manager-plugin`, Terraform, Ansible, `jq`, and S3-capable AWS credentials on the controller |
-
-Install Ansible as an isolated operator tool rather than into a project or system Python environment:
-
-```bash
-pipx install --include-deps ansible
-pipx install ansible-lint
-ansible-galaxy collection install -r ansible/requirements.yml
-```
-
-The AWS Session Manager plugin is a native AWS package, not a PyPI dependency. It is required by the
-`amazon.aws.aws_ssm` connection used by the MVP Ansible playbooks. Keep AWS credentials in the
-local credential store or short-lived federation; never put them in repository files. Pre-commit
-hooks run most remaining checks in isolated environments.
-
-Always select the Terraform environment explicitly by working from its directory. Before AWS
-initialization, create the versioned, encrypted, private S3 state
-bucket. The backend uses S3-native lockfiles; DynamoDB locking is deprecated by Terraform. Then copy
-`terraform/environments/aws-dev/backend.s3.hcl.example` to the ignored
-`backend.s3.hcl` and fill it locally. Use the native commands below for AWS MVP. Initialization
-configures that environment's backend; it is non-mutating to cloud resources, while `plan` is still a
-required review gate before any apply.
+See [docs/overview.md](docs/overview.md) for the canonical app/platform boundary, platform contract, and prerequisites table.
 
 ### Bootstrap the AWS State Backend
 
@@ -147,4 +77,5 @@ terraform show tfplan
 
 Continue with the [deployment guide](docs/deployment/deployment-guide.md),
 [platform observability](docs/operations/observability.md), or
-[recovery guide](docs/operations/recovery-guide.md).
+[recovery guide](docs/operations/recovery-guide.md). For the full boundary, contract, and evidence
+model, see [docs/overview.md](docs/overview.md).

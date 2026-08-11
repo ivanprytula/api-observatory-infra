@@ -4,9 +4,7 @@ This repository provisions and bootstraps the AWS MVP platform. It does not cont
 image locks, Compose files, or workload deployment workflows. The application repository owns the
 reviewed desired state and sends it to this platform through SSM after a lock PR merges.
 
-`mvp` describes the present product/deployment scope. `aws-dev` is the only active environment. Do
-not add stage or production environment scaffolding before the EC2 exercise has retained deployment,
-recovery, rollback, and teardown evidence.
+For the platform contract, boundaries, and ownership model, see [docs/overview.md](overview.md).
 
 ## Platform Contract 1
 

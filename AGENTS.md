@@ -1,25 +1,6 @@
 # AGENTS.md — Rules for AI Coding Agents
 
-Global rules for how AI coding agents (Cline, Kilo, Copilot, etc.) should behave when working on this user's
-projects.
-
-> **Project-specific overrides** for the current repo live in `CLAUDE.md`. Read that file too. The global
-> rules here apply everywhere; project rules win on conflict.
-
----
-
-## Brief overview
-
-This file is deliberately lean. Three groups of rules live here:
-
-1. **How to communicate** — priority, style, response shape, session mechanics.
-2. **How to behave around files** — read scope, secrets, credential stores, `.gitignore`.
-3. **Cross-project technical conventions** — short checklists and links; deep content lives in the project.
-
-The repository's own `.github/skills/` carry the long-form, invocable procedures. AGENTS.md carries the
-principles so an agent can act in any project, then points to the project files for depth.
-
----
+Global rules for AI coding agents (Cline, Kilo, Copilot, etc.) working on this repository. Project-specific overrides live in `CLAUDE.md`.
 
 ## Priority
 
@@ -37,31 +18,42 @@ Use tools immediately when the user asks to change files. Use `uv run` for Pytho
 
 Default shape: result, key validation, next step if needed. Keep explanations short and technical. Prefer prose over lists unless the content is inherently list-shaped. For simple tasks, one short paragraph is enough.
 
----
+## Working preferences
+
+- Prefer small, reviewable patches over broad refactors.
+- Offer one recommended approach; mention alternatives only when tradeoffs are material.
+- Preserve backward compatibility unless the user explicitly authorizes a breaking change.
+- Keep runtime dependencies minimal and explain why each new dependency is needed.
+- When a product decision is ambiguous, present concrete options and wait for direction.
+- Favor operationally simple solutions with explicit failure modes and useful observability.
+
+## Git operations
+
+Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging.
+
+## Commit messages
+
+Write a short headline using the conventional commits framework (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, etc.). Optionally add a commit body that explains why the change was made and the motivation, but do not list the files changed — that is already visible in `git diff`.
 
 ## Privacy and file access
 
 ### Respect `.gitignore`
 
-Treat any path covered by `.gitignore`, `.dockerignore`, `.pre-commit-config.yaml` `exclude:` lists, or any other project ignore file as out of scope. Do not read, grep, or display the contents of ignored files unless the user explicitly names that specific file in that specific message. Typical ignored paths: `.venv/`, `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `node_modules/`, `*.log`, build artifacts, `.copilot/`, `.kilo/`, `.cursor/`, `.aws/`, `.gcp/`, `.azure/`, `.ssh/`.
+Treat `.gitignore`, `.dockerignore`, `.pre-commit-config.yaml` `exclude:` lists, or any project ignore file as out of scope. Do not read, grep, or display the contents of ignored files unless the user explicitly names that specific file in that specific message. Typical ignored paths: `.venv/`, `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `node_modules/`, `*.log`, build artifacts, `.copilot/`, `.kilo/`, `.cursor/`, `.aws/`, `.gcp/`, `.azure/`, `.ssh/`.
 
-### Never read `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `vault.yml`, or any local secrets file
+### Never read secrets or credential stores
 
-Never read `.env`, `.env.*`, `*.tfvars` (non-`.example`), `*.tfstate*`, `vault.yml`, `secrets/`, `credentials`, or any other file that contains secrets, API keys, passwords, or tokens — even if committed (test fixtures in `.example` files are fine). If you need info from these files, ask the user to check and share only the relevant line/value, masked if needed. This overrides the general "read scope" allowance — these files are never in scope regardless of `.gitignore` status.
+Never read `.env`, `.env.*`, `*.tfvars` (non-`.example`), `*.tfstate*`, `vault.yml`, `secrets/`, `credentials`, or any other file that contains secrets, API keys, passwords, or tokens — even if committed (`.env.example` fixtures are fine). If you need info from these files, ask the user to check and share only the relevant line/value, masked if needed. This overrides the general "read scope" allowance — these files are never in scope regardless of `.gitignore` status.
 
-### Never read `~/.aws/*` (or any cloud credential store)
-
-Never read `~/.aws/credentials`, `~/.aws/config`, `~/.aws/sso/`, `~/.aws/amazonq/`, or any file under `~/.aws/`. The same rule applies to other providers: `~/.gcp/`, `~/.azure/`, `~/.kube/config`, `~/.docker/config.json`, `~/.netrc`, `~/.boto`, `~/.config/gcloud/`, `~/.config/gh/hosts.yml`, `~/.ssh/id_*`, `~/.gnupg/`. When a hook, linter, or CI rule appears to come from a credential file, fix the *configuration* (`.pre-commit-config.yaml`, exclude lists, env-var setup) — never the credential file itself. Treat placeholder values (`test`, `example`, `AKIAIOSFODNN7EXAMPLE`) the same as real values.
+Never read `~/.aws/`, `~/.gcp/`, `~/.azure/`, `~/.kube/config`, `~/.docker/config.json`, `~/.netrc`, `~/.boto`, `~/.config/gcloud/`, `~/.config/gh/hosts.yml`, `~/.ssh/id_*`, `~/.gnupg/`. When a hook, linter, or CI rule appears to come from a credential file, fix the *configuration* (`.pre-commit-config.yaml`, exclude lists, env-var setup) — never the credential file itself. Treat placeholder values (`test`, `example`, `AKIAIOSFODNN7EXAMPLE`) the same as real values.
 
 ### Diagnostics without exposing secrets
 
-For credential-related bugs, use only non-sensitive metadata: file existence (`ls -la`), file size, line count, env-var *names* (not values), or redacted output (`sed 's/=.*$/=***/'`). Never echo, log, or paste the value of an access key, secret key, session token, password, API token, or vault-decrypted value. Refer to credential values only by their masked prefix (e.g. `test****`) as the hook itself does.
+For credential bugs, use only non-sensitive metadata: file existence (`ls -la`), file size, line count, env-var *names* (not values), or redacted output (`sed 's/=.*$/=***/'`). Never echo, log, or paste the value of an access key, secret key, session token, password, API token, or vault-decrypted value. Refer to credential values only by their masked prefix (e.g. `test****`) as the hook itself does.
 
 ### When the user mentions a credentials issue
 
-Do not try to reproduce by reading the credential file. Pivot to: (a) reading the hook's source/regex, (b) reading the *committed* file the hook flagged, (c) suggesting a non-invasive fix in the repo config. Config/credential files that are *committed* to the repo (e.g. `terraform/**/*.tf`, sample `*.tfvars.example`, `backend.*.hcl.example`) are fine to read; the rule applies to the user's private local credential store and to real state/vault files.
-
----
+Do not try to reproduce by reading the credential file. Pivot to: (a) reading the hook's source/regex, (b) reading the *committed* file the hook flagged, (c) suggesting a non-invasive fix in the repo config. Committed config/credential files (e.g. `terraform/**/*.tf`, sample `*.tfvars.example`, `backend.*.hcl.example`) are fine to read; the rule applies to the user's private local credential store and to real state/vault files.
 
 ## Cross-project technical conventions
 
@@ -91,36 +83,28 @@ Use ACROSS as the primary design lens for any code in this repo (scripts, Ansibl
 
 Before suggesting any custom implementation, check whether a well-known Terraform module or Ansible role already solves the same problem. Flag abstractions with fewer than 3 callers or without a current AWS requirement. Simplest solution wins; portability belongs at the application contract boundary, not in speculative provider abstractions.
 
----
+## Progressive-loading routes
 
-## Chat session reminders
+For security-sensitive changes:
+  read `.github/instructions/security-and-owasp.instructions.md`
 
-- Start a new chat every 20 messages and whenever the topic changes, to keep context clean.
-- At the 20th message, prepare a concise "Session Summary" (template below) and offer to paste it into a new chat.
-- The first message of the new chat should be the summary, so context and continuity are preserved.
+For Terraform/Ansible changes:
+  read `CLAUDE.md` "Security Config" section
+  read `.github/skills/terraform-plan-review/SKILL.md`
+  read `.github/skills/terraform-checkov-triage/SKILL.md`
+  read `.github/skills/ansible-playbook-patterns/SKILL.md`
 
-### Session Summary Template (copy/paste into new chat)
+For Markdown documentation:
+  read `.github/instructions/markdown.instructions.md`
 
-- **Session title:**
-- **Date:**
-- **Message count:**
+For Bash scripts:
+  read `.github/instructions/bash.instructions.md`
 
-- **Topics covered:**
-   -
+For design/architecture decisions:
+  read `.github/instructions/design-patterns.instructions.md`
+  read `.github/instructions/solid-principles.instructions.md`
 
-- **Key decisions:**
-   -
-
-- **Files changed / paths:**
-   -
-
-- **Commands / snippets to run:**
-   -
-
-- **Outstanding questions / next steps:**
-   -
-
-- **Brief context / notes:**
-   -
-
-(End of summary)
+For project architecture, product decisions, or engineering topic lookups:
+  read `docs/architecture/evolution-plan.md`
+  read `docs/architecture/baseline-checklist.md`
+  read `docs/overview.md`

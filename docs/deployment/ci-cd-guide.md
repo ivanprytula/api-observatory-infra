@@ -4,6 +4,8 @@ Application CI/CD and platform CI have separate responsibilities. The app reposi
 publication, same-repository desired-state promotion, and SSM workload deployment. This repository
 owns the Terraform and Ansible capabilities that make those app workflows possible.
 
+For the full app/platform boundary and ownership model, see [docs/overview.md](overview.md).
+
 ## Platform-Provided Identities
 
 `terraform/environments/aws-dev/main.tf` defines two application-repository OIDC roles:
@@ -29,13 +31,26 @@ Protect both repositories' `main` branches with pull requests and `CI / Merge ga
 app `aws-image-publish` and `aws-dev` environments to `main`; the reviewed app lock merge is the
 routine approval, so extra environment-review prompts would duplicate it.
 
-## Boundaries
+## CI Boundaries
 
 Infra CI runs static Terraform, Ansible, workflow, documentation, and platform-contract checks. It
 does not check out application source, create promotion PRs, assume application deployment
-credentials, or send SSM workload commands. A passing check, Terraform plan, or provisioned role is
-configuration evidence only, not proof of a working deployment.
+credentials, or send SSM workload commands.
 
 Use the app [CI/CD reference](https://github.com/ivanprytula/api-observatory/blob/main/docs/06-ci-cd/ci-cd.md)
 for the executable delivery path and the app [OIDC setup](https://github.com/ivanprytula/api-observatory/blob/main/docs/06-ci-cd/github-secrets-setup.md)
 for GitHub variables and secret handling.
+
+## Promotion Model
+
+The application repository owns release promotion because it owns the workload and its operability.
+The platform repository supplies the same secure capabilities to each approved environment.
+
+| Environment | Release decision | Deployment behavior |
+| --- | --- | --- |
+| `aws-dev` | Review and merge the app-owned lock PR | Automatically deploy the merged lock when the app gate is enabled |
+
+No image is rebuilt between environments. Optional profile changes are a separate app PR, while image
+promotion preserves the profiles already merged into app `main`. The MVP has only `aws-dev`; do not
+create unused environment workflows in advance. A future environment requires exercised EC2
+recovery/rollback evidence plus its own acceptance, ownership, and approval contract.
