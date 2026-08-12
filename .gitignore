@@ -50,3 +50,5 @@ docs/.plans/
 .local-dev/
 # Ansible local caches and dependency installs.
 .ansible/
+.learnings/
+.codex/
