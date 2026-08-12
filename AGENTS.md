@@ -59,7 +59,7 @@ Do not try to reproduce by reading the credential file. Pivot to: (a) reading th
 
 ## Cross-project technical conventions
 
-For each topic below, the principles are listed inline; the long-form guidance and invokable procedures live in `.github/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
+For each topic below, the principles are listed inline; the long-form guidance and invokable procedures live in `../agent-forge/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
 
 ### Security (Terraform/Ansible) → see repo `CLAUDE.md` "Security Config" section
 
@@ -67,13 +67,13 @@ For each topic below, the principles are listed inline; the long-form guidance a
 - **Change visibility.** Always run `terraform plan` (or `-out=tfplan`) before `apply` and use Ansible check mode before an approved bootstrap when supported.
 - **Provider pinning.** Pin Terraform provider versions and commit the `aws-dev` provider lock.
 
-### Markdown → see app repo `.github/instructions/markdown.instructions.md` (shared convention)
+### Markdown → see app repo `../agent-forge/instructions/markdown.instructions.md` (shared convention)
 
 Use H1 once for the document title. H2 for major sections, H3 for subsections; never skip a level. Use `` `code` `` inline, language-tagged triple backticks for blocks, `-` for unordered lists, `1.` for ordered. Link liberally to source files with line refs. Keep docs concrete.
 
 **MD036 guardrail (always inline).** Pre-commit markdownlint MD036 fails on emphasis-only headings. Never put a standalone `**...**` line that acts as a heading. Replace with real `###`/`####` headings or convert into paragraph text.
 
-### Bash → see app repo `.github/instructions/bash.instructions.md` (shared convention)
+### Bash → see app repo `../agent-forge/instructions/bash.instructions.md` (shared convention)
 
 Shebang + metadata block. `set -o errexit -o pipefail -o nounset -o errtrace`. Trap ERR with a line-number reporter. Define `info`/`success`/`warn`/`error`/`require_command`/`command_exists` helpers at the top. Quote every variable (`"${var}"`). Never hardcode paths. `trap cleanup EXIT` for teardown. Lint with `shellcheck`.
 
@@ -88,23 +88,23 @@ Before suggesting any custom implementation, check whether a well-known Terrafor
 ## Progressive-loading routes
 
 For security-sensitive changes:
-  read `.github/instructions/security-and-owasp.instructions.md`
+  read `../agent-forge/instructions/security-and-owasp.instructions.md`
 
 For Terraform/Ansible changes:
   read `CLAUDE.md` "Security Config" section
-  read `.github/skills/terraform-plan-review/SKILL.md`
-  read `.github/skills/terraform-checkov-triage/SKILL.md`
-  read `.github/skills/ansible-playbook-patterns/SKILL.md`
+  read `../agent-forge/skills/terraform-plan-review/SKILL.md`
+  read `../agent-forge/skills/terraform-checkov-triage/SKILL.md`
+  read `../agent-forge/skills/ansible-playbook-patterns/SKILL.md`
 
 For Markdown documentation:
-  read `.github/instructions/markdown.instructions.md`
+  read `../agent-forge/instructions/markdown.instructions.md`
 
 For Bash scripts:
-  read `.github/instructions/bash.instructions.md`
+  read `../agent-forge/instructions/bash.instructions.md`
 
 For design/architecture decisions:
-  read `.github/instructions/design-patterns.instructions.md`
-  read `.github/instructions/solid-principles.instructions.md`
+  read `../agent-forge/instructions/design-patterns.instructions.md`
+  read `../agent-forge/instructions/solid-principles.instructions.md`
 
 For project architecture, product decisions, or engineering topic lookups:
   read `docs/architecture/evolution-plan.md`
@@ -114,3 +114,9 @@ For project architecture, product decisions, or engineering topic lookups:
 ## Instruction sync rule
 
 Whenever you add or update an instruction file listed in **Progressive-loading routes**, check whether the sibling app repository (`api-observatory`) has the same instruction file. If it does, update both repos to keep them in sync. If the sibling repo does not have it, update only the repo you were asked to modify, or the repo relevant to the specific action/question.
+
+## Central agent standards
+
+Shared agent standards are maintained in `agent-forge`:
+- Git workflow → `../agent-forge/instructions/git-workflow.instructions.md`
+- Repo standards (privacy, read scope, response style) → `../agent-forge/skills/repo-standards/SKILL.md`
