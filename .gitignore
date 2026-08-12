@@ -40,6 +40,9 @@ Thumbs.db
 # Claude Code
 .claude/settings.local.json
 
+# Kilo session recall artifacts
+.remember/
+
 docs/.plans/
 
 .venv/

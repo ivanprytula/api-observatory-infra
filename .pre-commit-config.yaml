@@ -18,7 +18,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.0
+    rev: v0.16.2
     hooks:
       - id: ruff-check
         args: [--fix, --config=pyproject.toml]
@@ -37,6 +37,21 @@ repos:
       - id: gitleaks
         name: gitleaks secrets scan
 
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.2
+    hooks:
+      - id: markdownlint-cli2
+        args: [--config, .markdownlint-cli2.jsonc, --fix]
+        files: \.(md|markdown)$
+        exclude: ^(\.venv/|\.remember/|node_modules/|vendor/)
+
+  - repo: https://github.com/tcort/markdown-link-check
+    rev: v3.15.0
+    hooks:
+      - id: markdown-link-check
+        args: [--config, .markdown-link-check.json]
+        files: \.(md|markdown)$
+
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.108.1
     hooks:
@@ -49,7 +64,7 @@ repos:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
 
   - repo: https://github.com/bridgecrewio/checkov
-    rev: 3.3.8
+    rev: 3.3.10
     hooks:
       - id: checkov
         entry: checkov
@@ -77,7 +92,7 @@ repos:
         args: [--severity=warning]
 
   - repo: https://github.com/ansible/ansible-lint
-    rev: v26.6.0
+    rev: v26.8.0
     hooks:
       - id: ansible-lint
         entry: ansible-lint --project-dir ansible
