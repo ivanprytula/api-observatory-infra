@@ -108,3 +108,7 @@ repos:
         language: system
         pass_filenames: false
         files: ^(README\.md|CONTRIBUTING\.md|Justfile|docs/)
+
+ci:
+  autofix_commit_msg: "chore: auto-fix pre-commit hooks"
+  autofix_prs: true
