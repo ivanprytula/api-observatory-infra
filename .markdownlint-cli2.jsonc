@@ -4,7 +4,12 @@
     ".remember/**",
     "node_modules/**",
     "vendor/**",
-    ".kilo/**"
+    ".kilo/**",
+    ".claude/**",
+    ".codex/**",
+    ".cursor/**",
+    ".windsurf/**",
+    ".github/copilot/**"
   ],
   "globs": [
     "**/*.md"

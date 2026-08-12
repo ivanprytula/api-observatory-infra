@@ -43,7 +43,7 @@ repos:
       - id: markdownlint-cli2
         args: [--config, .markdownlint-cli2.jsonc, --fix]
         files: \.(md|markdown)$
-        exclude: ^(\.venv/|\.remember/|node_modules/|vendor/)
+        exclude: ^(\.venv/|\.remember/|node_modules/|vendor/|\.claude/|\.kilo/|\.codex/|\.cursor/|\.windsurf/|\.github/copilot/)
 
   - repo: https://github.com/tcort/markdown-link-check
     rev: v3.15.0
