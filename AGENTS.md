@@ -14,6 +14,8 @@ Read this file first. Read only instruction files that match the files you touch
 
 Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. After refactoring — especially when changing test files or touching more than one module — run all code-quality pre-commit hooks (Ruff, terraform, Ansible, shellcheck, yamllint, docs, etc.) before running tests. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
 
+**Validate Python edits immediately.** After editing any `.py` file, run `python -m py_compile <file>` or `ruff check <file>` on that file before moving on. Do not batch edits across many files and validate only at the end. Catch syntax/indentation errors per file, then continue.
+
 ## Response style
 
 Default shape: result, key validation, next step if needed. Keep explanations short and technical. Prefer prose over lists unless the content is inherently list-shaped. For simple tasks, one short paragraph is enough.

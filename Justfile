@@ -1,8 +1,3 @@
-# API Observatory Infrastructure
-#
-# Just owns supported named workflows. Use the documented native Terraform and
-# Ansible commands for explicit operator work, including plan review and host
-# bootstrap. This repository has one active platform target: AWS `aws-dev`.
 
 doctor:
     bash scripts/doctor.sh
