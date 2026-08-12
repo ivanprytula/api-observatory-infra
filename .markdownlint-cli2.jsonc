@@ -1,15 +1,15 @@
 {
   "ignores": [
-    ".venv/**",
-    ".remember/**",
-    "node_modules/**",
-    "vendor/**",
-    ".kilo/**",
-    ".claude/**",
-    ".codex/**",
-    ".cursor/**",
-    ".windsurf/**",
-    ".github/copilot/**"
+    "**/.venv/**",
+    "**/.remember/**",
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/.kilo/**",
+    "**/.claude/**",
+    "**/.codex/**",
+    "**/.cursor/**",
+    "**/.windsurf/**",
+    "**/.github/copilot/**"
   ],
   "globs": [
     "**/*.md"
