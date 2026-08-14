@@ -4,7 +4,7 @@ Global rules for AI coding agents (Cline, Kilo, Copilot, etc.) working on this r
 
 ## Priority
 
-Optimize for low token usage. Be brief in chat. Prefer file edits and focused commands over long prose. Do not narrate internal reasoning, tool choice, or step-by-step plans unless asked. Do not paste large code blocks when the file can be edited directly. Do not restate the same fact twice. Do not dump large command output; summarize only the important lines.
+Optimize for low token usage. Be brief in chat. Prefer file edits and focused commands over long prose. Do not narrate internal reasoning, tool choice, or step-by-step plans unless asked. Do not paste large code blocks when the file can be edited directly. Do not restate the same fact twice. Summarize important lines only.
 
 ## Read scope
 
@@ -15,6 +15,10 @@ Read this file first. Read only instruction files that match the files you touch
 Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. After refactoring — especially when changing test files or touching more than one module — run all code-quality pre-commit hooks (Ruff, terraform, Ansible, shellcheck, yamllint, docs, etc.) before running tests. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
 
 **Validate Python edits immediately.** After editing any `.py` file, run `python -m py_compile <file>` or `ruff check <file>` on that file before moving on. Do not batch edits across many files and validate only at the end. Catch syntax/indentation errors per file, then continue.
+
+## Mode gating
+
+At the start of each turn, check the current execution mode (ask, code, plan, etc.) before performing file operations. In ask/read-only modes, only read files; never write, edit, or execute side-effecting commands. File writes and edits are permitted only in code/plan modes.
 
 ## Response style
 
@@ -31,7 +35,7 @@ Default shape: result, key validation, next step if needed. Keep explanations sh
 
 ## Git operations
 
-Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging. Never drop git stashes in any repository; preserve them across sessions.
+Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging. Never drop git stashes in any repository; preserve them across sessions. **Never git push code unless explicitly given such a task.**
 
 ## Commit messages
 
@@ -41,7 +45,7 @@ Write a short headline using the conventional commits framework (`feat:`, `fix:`
 
 ### Respect `.gitignore`
 
-Treat `.gitignore`, `.dockerignore`, `.pre-commit-config.yaml` `exclude:` lists, or any project ignore file as out of scope. Do not read, grep, or display the contents of ignored files unless the user explicitly names that specific file in that specific message. Typical ignored paths: `.venv/`, `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `node_modules/`, `*.log`, build artifacts, `.copilot/`, `.kilo/`, `.cursor/`, `.aws/`, `.gcp/`, `.azure/`, `.ssh/`.
+Treat `.gitignore`, `.dockerignore`, `.pre-commit-config.yaml` `exclude:` lists, or any project ignore file as out of scope. Do not read ignored files unless the user explicitly names that specific file. Typical ignored paths: `.venv/`, `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `node_modules/`, `*.log`, build artifacts, `.copilot/`, `.kilo/`, `.cursor/`, `.aws/`, `.gcp/`, `.azure/`, `.ssh/`.
 
 ### Never read secrets or credential stores
 
@@ -59,25 +63,25 @@ Do not try to reproduce by reading the credential file. Pivot to: (a) reading th
 
 ## Cross-project technical conventions
 
-For each topic below, the principles are listed inline; the long-form guidance and invokable procedures live in `../agent-forge/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
+For each topic below, the principles are listed inline; long-form guidance and invocable procedures live in `../agent-forge/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
 
-### Security (Terraform/Ansible) → see repo `CLAUDE.md` "Security Config" section
+### Security (Terraform/Ansible) → see `CLAUDE.md` "Security Config" section
 
 - **State & secrets.** Never read or print `.tfstate*`, `vault.yml`, or non-`.example` `.tfvars`. Backend config lives in `backend.*.hcl.example`.
 - **Change visibility.** Always run `terraform plan` (or `-out=tfplan`) before `apply` and use Ansible check mode before an approved bootstrap when supported.
 - **Provider pinning.** Pin Terraform provider versions and commit the `aws-dev` provider lock.
 
-### Markdown → see app repo `../agent-forge/instructions/markdown.instructions.md` (shared convention)
+### Markdown → `../agent-forge/instructions/markdown.instructions.md`
 
 Use H1 once for the document title. H2 for major sections, H3 for subsections; never skip a level. Use `` `code` `` inline, language-tagged triple backticks for blocks, `-` for unordered lists, `1.` for ordered. Link liberally to source files with line refs. Keep docs concrete.
 
 **MD036 guardrail (always inline).** Pre-commit markdownlint MD036 fails on emphasis-only headings. Never put a standalone `**...**` line that acts as a heading. Replace with real `###`/`####` headings or convert into paragraph text.
 
-### Bash → see app repo `../agent-forge/instructions/bash.instructions.md` (shared convention)
+### Bash → `../agent-forge/instructions/bash.instructions.md`
 
 Shebang + metadata block. `set -o errexit -o pipefail -o nounset -o errtrace`. Trap ERR with a line-number reporter. Define `info`/`success`/`warn`/`error`/`require_command`/`command_exists` helpers at the top. Quote every variable (`"${var}"`). Never hardcode paths. `trap cleanup EXIT` for teardown. Lint with `shellcheck`.
 
-### Design principles → see `~/.claude/CLAUDE.md` (ACROSS) and repo `CLAUDE.md` (P1-P3)
+### Design principles → see `~/.claude/CLAUDE.md` (ACROSS) and `CLAUDE.md` (P1-P3)
 
 Use ACROSS as the primary design lens for any code in this repo (scripts, Ansible modules, tooling) — it prioritizes change management over structural purity. This repo's own P1-P3 engineering principles (Python-first justified polyglot, YAGNI/boring/business-first, vertical-slice estimation) apply alongside it, specifically for infra tooling decisions.
 
@@ -87,97 +91,21 @@ Before suggesting any custom implementation, check whether a well-known Terrafor
 
 ## Progressive-loading routes
 
-For security-sensitive changes:
-  read `../agent-forge/instructions/security-and-owasp.instructions.md`
+Read the relevant skill or instruction file before producing significant code in that area:
 
-For Terraform/Ansible changes:
-  read `CLAUDE.md` "Security Config" section
-  read `../agent-forge/skills/terraform-plan-review/SKILL.md`
-  read `../agent-forge/skills/terraform-checkov-triage/SKILL.md`
-  read `../agent-forge/skills/ansible-playbook-patterns/SKILL.md`
-
-For Markdown documentation:
-  read `../agent-forge/instructions/markdown.instructions.md`
-
-For Bash scripts:
-  read `../agent-forge/instructions/bash.instructions.md`
-
-For design/architecture decisions:
-  read `../agent-forge/instructions/design-patterns.instructions.md`
-  read `../agent-forge/instructions/solid-principles.instructions.md`
-
-For project architecture, product decisions, or engineering topic lookups:
-  read `docs/architecture/evolution-plan.md`
-  read `docs/architecture/baseline-checklist.md`
-  read `docs/overview.md`
+- **Terraform/Ansible** → `../agent-forge/skills/terraform-plan-review/SKILL.md`, `../agent-forge/skills/terraform-checkov-triage/SKILL.md`, `../agent-forge/skills/ansible-playbook-patterns/SKILL.md`
+- **Bash** → `../agent-forge/instructions/bash.instructions.md`
+- **Markdown** → `../agent-forge/instructions/markdown.instructions.md`
+- **Design/architecture** → `../agent-forge/instructions/design-patterns.instructions.md`, `../agent-forge/instructions/solid-principles.instructions.md`
+- **Project architecture** → `docs/architecture/evolution-plan.md`, `docs/architecture/baseline-checklist.md`, `docs/overview.md`
 
 ## Instruction sync rule
 
-Whenever you add or update an instruction file listed in **Progressive-loading routes**, check whether the sibling app repository (`api-observatory`) has the same instruction file. If it does, update both repos to keep them in sync. If the sibling repo does not have it, update only the repo you were asked to modify, or the repo relevant to the specific action/question.
+Whenever you add or update an instruction file listed in **Progressive-loading routes**, check whether the sibling app repository (`api-observatory`) has the same instruction file. If it does, update both repos to keep them in sync. If the sibling repo does not have it, update only the repo you were asked to modify.
 
 ## Central agent standards
 
 Shared agent standards are maintained in `agent-forge`:
+
 - Git workflow → `../agent-forge/instructions/git-workflow.instructions.md`
-- Repo standards (privacy, read scope, response style) → `../agent-forge/skills/repo-standards/SKILL.md`
-
----
-
-## Skills
-
-This repo includes reusable skills in agent-specific hidden directories (`.claude/skills/`, `.kilo/skills/`, etc.). Skills are agent playbooks — structured instructions for repeatable workflows.
-
-| Skill                                                        | Purpose                                                     | Trigger                                                     |
-| ------------------------------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------- |
-| [self-improving-agent](.claude/skills/self-improving-agent/SKILL.md) | Improve this AGENTS.md, create new skills, encode learnings | After completing a task, or when noticing repeated friction |
-
-### Using Skills
-
-- Read the skill's `SKILL.md` when the trigger condition is met.
-- Follow the steps exactly as written.
-- If a skill's instructions are stale or wrong, update the skill.
-
-### Creating New Skills
-
-When a workflow repeats — especially across projects — promote it to a skill. Use the `self-improving-agent` skill for guidance on when and how.
-
----
-
-## Self-Correction Protocol
-
-> This section defines how this file stays alive and accurate.
-
-1. **Stale map?** If you discover that the Codebase Map above doesn't match reality, **update it now** before continuing your task. Don't leave it for later.
-
-2. **User correction?** If a human corrects your behavior (e.g., "don't use that API", "run tests this way"), add the correction to the appropriate section of this file (Local Norms, Guardrails, or Patterns & Gotchas) so future sessions inherit it.
-
-3. **Repeated friction?** If you notice yourself doing the same multi-step workflow more than once, consider creating a new skill in the appropriate agent skills directory. Use the [self-improving-agent skill](.claude/skills/self-improving-agent/SKILL.md) for the procedure.
-
-4. **Post-task reflection.** After completing a significant task, briefly review:
-   - Did anything surprise you?
-   - Did you take a path that could be shortcutted next time?
-   - If yes, record the insight in this file or as a new skill.
-
-5. **Promotion rule.** Before promoting a learning to this file, check `.learnings/LEARNINGS.md` for related entries. If a pattern has `Recurrence-Count >= 3`, has been seen across at least 2 distinct tasks, and occurred within a 30-day window, it qualifies for promotion. Write the promoted rule as a short prevention rule, not a long incident write-up.
-
----
-
-## Template Usage
-
-This repository is designed as a centralized skills and instructions repo for the `api-obs-stack` workspace. When integrating it into a project:
-
-1. From the target project root, run the appropriate adapter:
-   ```bash
-   bash ../agent-forge/adapters/kilo/apply.sh
-   ```
-2. Update the **Codebase Map** to reflect the project's actual structure.
-3. Update **Local Norms** with the project's build commands, test commands, and conventions.
-4. Delete placeholder entries (the italicized examples) and replace with real ones.
-5. Keep the **Self-Correction Protocol** and **Guardrails** — they apply universally.
-6. Add project-specific skills to the appropriate agent skills directory as your workflows emerge.
-
-## Notes
-
-- Project-specific configs (MCP servers, plugin configs, local overrides, runtime state) stay in each project.
-- `.github/` CI/CD workflows stay project-local.
-- `.learnings/` is gitignored by default to keep developer logs local. Enable team-wide sharing by removing the `.gitignore` entry.
+- Repo standards → `../agent-forge/skills/repo-standards/SKILL.md`

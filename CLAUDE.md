@@ -122,3 +122,11 @@ Security is enforced via `.claude/settings.json` (deny rules, hooks):
 - Never delete infrastructure resources without explicit confirmation.
 - Always run `terraform plan` before `terraform apply`.
 - Prefer `terraform plan -out=tfplan` then `terraform apply tfplan` workflow.
+
+## Shared Agent Standards
+
+Centralized standards in `../agent-forge/`:
+- Skills → `../agent-forge/skills/<name>/SKILL.md` (linked into `.claude/skills/`)
+- Instructions → `../agent-forge/instructions/<topic>.instructions.md`
+- Read the matching file before producing significant code in that area.
+
