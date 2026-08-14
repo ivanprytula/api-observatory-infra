@@ -18,7 +18,7 @@ before the EC2, ECS-on-Fargate, and EKS learning sequence has exercised evidence
 
 ## App Contract
 
-See [docs/overview.md](overview.md) for the full platform contract and image/health/env details.
+See [docs/overview.md](docs/overview.md) for the full platform contract and image/health/env details.
 
 ## Shell Scripting
 
@@ -129,4 +129,3 @@ Centralized standards in `../agent-forge/`:
 - Skills → `../agent-forge/skills/<name>/SKILL.md` (linked into `.claude/skills/`)
 - Instructions → `../agent-forge/instructions/<topic>.instructions.md`
 - Read the matching file before producing significant code in that area.
-
