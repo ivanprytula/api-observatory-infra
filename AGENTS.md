@@ -1,97 +1,16 @@
 # AGENTS.md — Rules for AI Coding Agents
 
-Global rules for AI coding agents (Cline, Kilo, Copilot, etc.) working on this repository. Project-specific overrides live in `CLAUDE.md`.
+Global rules for agents working in this repository. Generic behavior rules live in `../agent-forge/instructions/agent-behavior.instructions.md`. Project-specific overrides live in `CLAUDE.md`.
 
-## Priority
+## Patterns & Gotchas
 
-Optimize for low token usage. Be brief in chat. Prefer file edits and focused commands over long prose. Do not narrate internal reasoning, tool choice, or step-by-step plans unless asked. Do not paste large code blocks when the file can be edited directly. Do not restate the same fact twice. Summarize important lines only.
-
-## Read scope
-
-Read this file first. Read only instruction files that match the files you touch. Do not read `.env`, secrets, vault files, or unrelated config unless explicitly asked. Do not scan `.venv`.
-
-## Execution rules
-
-Use tools immediately when the user asks to change files. Use `uv run` for Python commands, scripts, and tooling. After refactoring — especially when changing test files or touching more than one module — run all code-quality pre-commit hooks (Ruff, terraform, Ansible, shellcheck, yamllint, docs, etc.) before running tests. Do not commit, amend, or create branches unless explicitly asked. Do not revert user changes unless explicitly asked. Never run `terraform apply` or `ansible-playbook` without first showing the user what will change (`terraform plan`, `--check`, etc.) and getting explicit confirmation.
-
-**Validate Python edits immediately.** After editing any `.py` file, run `python -m py_compile <file>` or `ruff check <file>` on that file before moving on. Do not batch edits across many files and validate only at the end. Catch syntax/indentation errors per file, then continue.
-
-## Mode gating
-
-At the start of each turn, check the current execution mode (ask, code, plan, etc.) before performing file operations. In ask/read-only modes, only read files; never write, edit, or execute side-effecting commands. File writes and edits are permitted only in code/plan modes.
-
-## Response style
-
-Default shape: result, key validation, next step if needed. Keep explanations short and technical. Prefer prose over lists unless the content is inherently list-shaped. For simple tasks, one short paragraph is enough.
-
-## Working preferences
-
-- Prefer small, reviewable patches over broad refactors.
-- Offer one recommended approach; mention alternatives only when tradeoffs are material.
-- Preserve backward compatibility unless the user explicitly authorizes a breaking change.
-- Keep runtime dependencies minimal and explain why each new dependency is needed.
-- When a product decision is ambiguous, present concrete options and wait for direction.
-- Favor operationally simple solutions with explicit failure modes and useful observability.
-
-## Git operations
-
-Never use `git add .` or `git add -A`. When staging for commit, explicitly list only the files relevant to the current task. If the task scope is unclear, ask before staging. Never drop git stashes in any repository; preserve them across sessions. **Never git push code unless explicitly given such a task.**
-
-## Commit messages
-
-Write a short headline using the conventional commits framework (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, etc.). Optionally add a commit body that explains why the change was made and the motivation, but do not list the files changed — that is already visible in `git diff`.
-
-## Privacy and file access
-
-### Respect `.gitignore`
-
-Treat `.gitignore`, `.dockerignore`, `.pre-commit-config.yaml` `exclude:` lists, or any project ignore file as out of scope. Do not read ignored files unless the user explicitly names that specific file. Typical ignored paths: `.venv/`, `.env`, `.env.*`, `*.tfvars`, `*.tfstate*`, `node_modules/`, `*.log`, build artifacts, `.copilot/`, `.kilo/`, `.cursor/`, `.aws/`, `.gcp/`, `.azure/`, `.ssh/`.
-
-### Never read secrets or credential stores
-
-Never read `.env`, `.env.*`, `*.tfvars` (non-`.example`), `*.tfstate*`, `vault.yml`, `secrets/`, `credentials`, or any other file that contains secrets, API keys, passwords, or tokens — even if committed (`.env.example` fixtures are fine). If you need info from these files, ask the user to check and share only the relevant line/value, masked if needed. This overrides the general "read scope" allowance — these files are never in scope regardless of `.gitignore` status.
-
-Never read `~/.aws/`, `~/.gcp/`, `~/.azure/`, `~/.kube/config`, `~/.docker/config.json`, `~/.netrc`, `~/.boto`, `~/.config/gcloud/`, `~/.config/gh/hosts.yml`, `~/.ssh/id_*`, `~/.gnupg/`. When a hook, linter, or CI rule appears to come from a credential file, fix the *configuration* (`.pre-commit-config.yaml`, exclude lists, env-var setup) — never the credential file itself. Treat placeholder values (`test`, `example`, `AKIAIOSFODNN7EXAMPLE`) the same as real values.
-
-### Diagnostics without exposing secrets
-
-For credential bugs, use only non-sensitive metadata: file existence (`ls -la`), file size, line count, env-var *names* (not values), or redacted output (`sed 's/=.*$/=***/'`). Never echo, log, or paste the value of an access key, secret key, session token, password, API token, or vault-decrypted value. Refer to credential values only by their masked prefix (e.g. `test****`) as the hook itself does.
-
-### When the user mentions a credentials issue
-
-Do not try to reproduce by reading the credential file. Pivot to: (a) reading the hook's source/regex, (b) reading the *committed* file the hook flagged, (c) suggesting a non-invasive fix in the repo config. Committed config/credential files (e.g. `terraform/**/*.tf`, sample `*.tfvars.example`, `backend.*.hcl.example`) are fine to read; the rule applies to the user's private local credential store and to real state/vault files.
-
-## Cross-project technical conventions
-
-For each topic below, the principles are listed inline; long-form guidance and invocable procedures live in `../agent-forge/skills/`. Read the relevant skill before producing significant infrastructure changes in that area.
-
-### Security (Terraform/Ansible) → see `CLAUDE.md` "Security Config" section
-
-- **State & secrets.** Never read or print `.tfstate*`, `vault.yml`, or non-`.example` `.tfvars`. Backend config lives in `backend.*.hcl.example`.
-- **Change visibility.** Always run `terraform plan` (or `-out=tfplan`) before `apply` and use Ansible check mode before an approved bootstrap when supported.
-- **Provider pinning.** Pin Terraform provider versions and commit the `aws-dev` provider lock.
-
-### Markdown → `../agent-forge/instructions/markdown.instructions.md`
-
-Use H1 once for the document title. H2 for major sections, H3 for subsections; never skip a level. Use `` `code` `` inline, language-tagged triple backticks for blocks, `-` for unordered lists, `1.` for ordered. Link liberally to source files with line refs. Keep docs concrete.
-
-**MD036 guardrail (always inline).** Pre-commit markdownlint MD036 fails on emphasis-only headings. Never put a standalone `**...**` line that acts as a heading. Replace with real `###`/`####` headings or convert into paragraph text.
-
-### Bash → `../agent-forge/instructions/bash.instructions.md`
-
-Shebang + metadata block. `set -o errexit -o pipefail -o nounset -o errtrace`. Trap ERR with a line-number reporter. Define `info`/`success`/`warn`/`error`/`require_command`/`command_exists` helpers at the top. Quote every variable (`"${var}"`). Never hardcode paths. `trap cleanup EXIT` for teardown. Lint with `shellcheck`.
-
-### Design principles → see `~/.claude/CLAUDE.md` (ACROSS) and `CLAUDE.md` (P1-P3)
-
-Use ACROSS as the primary design lens for any code in this repo (scripts, Ansible modules, tooling) — it prioritizes change management over structural purity. This repo's own P1-P3 engineering principles (Python-first justified polyglot, YAGNI/boring/business-first, vertical-slice estimation) apply alongside it, specifically for infra tooling decisions.
-
-### Anti-overengineering
-
-Before suggesting any custom implementation, check whether a well-known Terraform module or Ansible role already solves the same problem. Flag abstractions with fewer than 3 callers or without a current AWS requirement. Simplest solution wins; portability belongs at the application contract boundary, not in speculative provider abstractions.
+- _(e.g., "The v1/users API is deprecated — use v2/users instead.")_
+- _(e.g., "When adding a new enum value, also update `constants.ts` or tests will fail.")_
+- _(e.g., "The CI uses Node 20 — don't use Node 22 features.")_
 
 ## Progressive-loading routes
 
-Read the relevant skill or instruction file before producing significant code in that area:
+Read the relevant skill or instruction file before producing significant infrastructure changes in that area:
 
 - **Terraform/Ansible** → `../agent-forge/skills/terraform-plan-review/SKILL.md`, `../agent-forge/skills/terraform-checkov-triage/SKILL.md`, `../agent-forge/skills/ansible-playbook-patterns/SKILL.md`
 - **Bash** → `../agent-forge/instructions/bash.instructions.md`
