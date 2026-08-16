@@ -27,4 +27,4 @@ Whenever you add or update an instruction file listed in **Progressive-loading r
 Shared agent standards are maintained in `agent-forge`:
 
 - Git workflow → `../agent-forge/instructions/git-workflow.instructions.md`
-- Repo standards → `../agent-forge/skills/repo-standards/SKILL.md`
+- Repo standards → `../agent-forge/instructions/agent-behavior.instructions.md`
