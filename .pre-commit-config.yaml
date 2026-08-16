@@ -18,7 +18,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.2
+    rev: v0.16.3
     hooks:
       - id: ruff-check
         args: [--fix, --config=pyproject.toml]
@@ -64,7 +64,7 @@ repos:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
 
   - repo: https://github.com/bridgecrewio/checkov
-    rev: 3.3.10
+    rev: 3.3.11
     hooks:
       - id: checkov
         entry: checkov
