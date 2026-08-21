@@ -28,3 +28,8 @@ Shared agent standards are maintained in `agent-forge`:
 
 - Git workflow → `../agent-forge/instructions/git-workflow.instructions.md`
 - Repo standards → `../agent-forge/instructions/agent-behavior.instructions.md`
+
+## Python execution
+
+- Use `uv` for Python dependency management.
+- For running Python modules, scripts, and tests in the shell, use `uv run ...`, not `python -c ...` or `python3 -c ...`.
