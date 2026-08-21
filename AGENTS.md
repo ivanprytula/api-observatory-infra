@@ -33,3 +33,10 @@ Shared agent standards are maintained in `agent-forge`:
 
 - Use `uv` for Python dependency management.
 - For running Python modules, scripts, and tests in the shell, use `uv run ...`, not `python -c ...` or `python3 -c ...`.
+
+## IaC pre-commit guardrails
+
+- **Use `just` recipes for Terraform workflows.** Do not run `terraform` commands directly unless debugging.
+- **Run `terraform fmt` before committing.** It is enforced by pre-commit (`terraform_fmt`).
+- **Run `checkov` manually only when pre-commit is skipped.** Use `uv run pre-commit run checkov --all-files` otherwise.
+- **Use `ansible-lint` via pre-commit.** Do not invoke it directly with custom args.
