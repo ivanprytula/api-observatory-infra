@@ -2,6 +2,10 @@
 
 Global rules for agents working in this repository. Generic behavior rules live in `../agent-forge/instructions/agent-behavior.instructions.md`. Project-specific overrides live in `CLAUDE.md`.
 
+## Git stash
+
+**Never drop git stashes.** Only use `git stash pop` or `git stash apply`. Preserve stashes across sessions in all repositories.
+
 ## Patterns & Gotchas
 
 - _(e.g., "The v1/users API is deprecated — use v2/users instead.")_
